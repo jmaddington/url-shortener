@@ -5,6 +5,9 @@ from onelogin.saml2.utils import OneLogin_Saml2_Utils
 import json
 import os
 from urllib.parse import urlparse
+import logging
+
+logger = logging.getLogger(__name__)
 
 def init_saml_auth(req):
     saml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saml')
@@ -18,7 +21,7 @@ def prepare_flask_request(request):
     return {
         'https': 'on' if request.scheme == 'https' else 'off',
         'http_host': request.host,
-        'server_port': url_data.port,
+        'server_port': url_data.port or (443 if request.scheme == 'https' else 80),
         'script_name': request.path,
         'get_data': request.args.copy(),
         'post_data': request.form.copy(),
@@ -36,7 +39,7 @@ def requires_auth(f):
                 }
             return f(*args, **kwargs)
             
-        if not session.get('samlUserdata'):
+        if not session.get('user'):
             session['next_url'] = request.url
             return redirect(url_for('sso_login'))
             
