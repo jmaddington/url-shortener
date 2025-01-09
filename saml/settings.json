@@ -1,5 +1,5 @@
 {
-    "strict": true,
+    "strict": false,
     "debug": true,
     "sp": {
         "entityId": "4f4ce814f4294bac-9e71131e58df6c32",
@@ -11,7 +11,7 @@
             "url": "https://8080-itiu28vd219pr0s6cpomi-ff67b2e6.e2b.dev/sso/sls",
             "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
         },
-        "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+        "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
     },
     "idp": {
         "entityId": "https://sts.windows.net/e150f480-24a3-43a2-bda8-7153c504f306/",
