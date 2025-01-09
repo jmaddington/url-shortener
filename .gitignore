@@ -39,4 +39,5 @@ uploads/
 
 # System files
 .DS_Store
-Thumbs.db
+Thumbs.dbflask_session/
+.env
