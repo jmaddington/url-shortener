@@ -1,0 +1,43 @@
+{
+    "strict": true,
+    "debug": true,
+    "sp": {
+        "entityId": "4f4ce814f4294bac-9e71131e58df6c32",
+        "assertionConsumerService": {
+            "url": "https://8080-itiu28vd219pr0s6cpomi-ff67b2e6.e2b.dev/sso/acs",
+            "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+        },
+        "singleLogoutService": {
+            "url": "https://8080-itiu28vd219pr0s6cpomi-ff67b2e6.e2b.dev/sso/sls",
+            "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+        },
+        "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+    },
+    "idp": {
+        "entityId": "https://sts.windows.net/e150f480-24a3-43a2-bda8-7153c504f306/",
+        "singleSignOnService": {
+            "url": "https://login.microsoftonline.com/e150f480-24a3-43a2-bda8-7153c504f306/saml2",
+            "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+        },
+        "singleLogoutService": {
+            "url": "https://login.microsoftonline.com/e150f480-24a3-43a2-bda8-7153c504f306/saml2",
+            "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+        },
+        "x509cert": "MIIC8DCCAdigAwIBAgIQF8ghbwN4d5NJ706bD+nWmzANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDEylNaWNyb3NvZnQgQXp1cmUgRmVkZXJhdGVkIFNTTyBDZXJ0aWZpY2F0ZTAeFw0yNTAxMDkyMjQxNTNaFw0yODAxMDkyMjQxNTNaMDQxMjAwBgNVBAMTKU1pY3Jvc29mdCBBenVyZSBGZWRlcmF0ZWQgU1NPIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5s1VDahEYSrkeSrERx6Hj4rUjgxbH7mGSLZ5HLDVEMwiYtaGxL5vpm0OYbTwvBCHNASwEspmH+14Eqnx3o9s3vnvMNqOx6UIxn5dnhJA028/Y14fkOTrnrY0QT10b0oLzdvPnb8RSBaqLF0v7H3gb+rhyLwDKreTDRgLB6biFsik7jph/XDYageFcTUDxnKj8nnDWQggS3ecsJMAWTyzgPRm0jC7EuwJPHeSsF3Je4VaEYkLiumQ8H3FeYnNvCpLk8xuZ07Qk+L+Dd0JAU3D1c9p4JI7SkLdFxMrdhhzi1Lwg/nxmBZoxZ7rh1n3kscuRMf7KKgDFSoxiV8Sb22EMQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQBsdRhoZNuJ0ZEmTe7KA7bj/aYh6lZ6P4nAjR05dF+k+6nQe5aPSibaGOhS4dUku6d8BIBQqHlP99RYDM2Fi1U1DpJ1MN6ISIo+IMHRXwGiE4Z5YpMgtNe3atVCxjSd+zEY77MzfZe7Q9ebVk6NQouAxjLffy4f3vaPUa2Z0+TdiLiKd3IUV4tQ02ERRrXfZd68eaUXxAu+OEEapn9cYI/niNY/b/KTsfUOF28OjFeD8D9sT0TfSxjb1GKuWOxjv9wTg40uI0+yMUA+PIcOwk+2OPPqnXNy4h/qVPxccYnFfBwYL2WogA7ox6TWt1xuqYbLfwpwhkgqOB3B7WF+ZSBM"
+    },
+    "security": {
+        "nameIdEncrypted": false,
+        "authnRequestsSigned": false,
+        "logoutRequestSigned": false,
+        "logoutResponseSigned": false,
+        "signMetadata": false,
+        "wantMessagesSigned": false,
+        "wantAssertionsSigned": false,
+        "wantNameId": true,
+        "wantNameIdEncrypted": false,
+        "wantAssertionsEncrypted": false,
+        "allowSingleLabelDomains": false,
+        "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        "digestAlgorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+    }
+}
