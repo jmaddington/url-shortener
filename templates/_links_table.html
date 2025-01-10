@@ -83,12 +83,13 @@
             <a href="/admin/edit/{{ link.short_link }}" class="button edit" title="Edit">
                 <i class="fas fa-edit"></i>
             </a>
-            <!-- Trash icon only, no text -->
+            <!-- Trash can icon only, no text 
+                 Now uses `class="button delete"` so the styles match the pencil button -->
             <form method="POST" action="/admin/delete" style="display: inline;">
                 <input type="hidden" name="short_link" value="{{ link.short_link }}">
-                <button type="submit" class="delete" title="Delete">
+                <a href="#" class="delete" title="Delete" onclick="if(confirm('Are you sure you want to delete this link?')) this.parentElement.submit(); return false;">
                     <i class="fas fa-trash"></i>
-                </button>
+                </a>
             </form>
         </td>
     </tr>
