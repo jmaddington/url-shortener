@@ -41,6 +41,60 @@ python app.py
 http://localhost:8080/admin
 ```
 
+## Usage
+
+### Creating URL Shortcuts
+1. Go to the admin interface
+2. Enter your desired short link and target URL
+3. Click "Create URL Link"
+
+### Uploading Files
+1. Go to the admin interface
+2. Enter your desired short link
+3. Select a file
+4. Click "Upload File"
+
+### Managing Links
+- Use the copy button to copy the full link to clipboard
+- Use the delete button to remove links and their associated files
+- View click statistics for each link
+
+## Technical Details
+
+- Built with Flask
+- Uses SQLite for storage
+- Supports file uploads up to 16MB
+- SAML-based SSO integration
+- Click tracking with IP address
+- Mobile-responsive design
+
+## Security Notes
+
+This is a development version and should not be used in production without additional security measures:
+- Add CSRF protection
+- Add rate limiting
+- Configure proper WSGI server
+- Set up proper file storage
+- Add input validation
+- Configure secure session handling
+- Set up proper logging
+
+## Directory Structure
+
+```
+.
+├── app.py              # Main application file
+├── auth.py            # Authentication handling
+├── config.py          # Configuration management
+├── database.py        # Database operations
+├── requirements.txt   # Python dependencies
+├── schema.sql        # Database schema
+├── uploads/          # Uploaded files storage
+├── saml/            # SAML SSO configuration
+│   └── settings.json
+└── shortener.db     # SQLite database
+```
+
 ## File Storage
 
 - Uploaded files are stored in the `uploads/` directory
@@ -76,6 +130,28 @@ CREATE TABLE clicks (
 );
 ```
 
+## SSO Configuration
+
+### Microsoft Entra ID Setup
+
+1. Register an Enterprise Application in Azure Portal
+2. Configure the following URLs:
+   - Identifier (Entity ID): Your application ID
+   - Reply URL (ACS URL): `https://your-domain/sso/acs`
+   - Sign-on URL: `https://your-domain/sso/login`
+   - Logout URL: `https://your-domain/sso/logout`
+
+3. Update SAML settings in `saml/settings.json`:
+   - Entity ID
+   - Certificate
+   - SSO endpoints
+
+### Local Authentication
+
+To disable SSO and use local authentication:
+1. Set `ENABLE_SSO=false` in `.env`
+2. Restart the application
+3. A default local user will be used
 
 ## Docker Deployment
 
