@@ -13,7 +13,7 @@ class Config:
     
     # Upload config
     UPLOAD_FOLDER = 'uploads'
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+    MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB
     
     # Feature flags
     ENABLE_SSO = os.getenv('ENABLE_SSO', 'false').lower() == 'true'
