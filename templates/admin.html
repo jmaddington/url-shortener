@@ -162,6 +162,75 @@ tr:hover {
     margin-top: 0.25rem;
 }
 
+.search-container {
+    margin-bottom: 1rem;
+}
+
+.search-box {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #718096;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+#searchInput:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
+
+#searchInput::placeholder {
+    color: #a0aec0;
+}
+
+.links-table {
+    position: relative;
+    min-height: 200px;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    display: none;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #4299e1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
     table {
         display: block;
@@ -219,59 +288,72 @@ tr:hover {
     </div>
 </div>
 
+<div class="search-container card">
+    <div class="search-box">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="searchInput" placeholder="Search links..." autocomplete="off">
+    </div>
+</div>
+
 <div class="card">
     <h2>Existing Links</h2>
-    <table>
-        <tr>
-            <th>Short Link</th>
-            <th>Target</th>
-            <th>Description</th>
-            <th>Type</th>
-            <th>Stats</th>
-            <th>Actions</th>
-        </tr>
-        {% for link in links %}
-        <tr>
-            <td>
-                <div style="display: flex; align-items: center;">
-                    <a href="/{{ link.short_link }}" target="_blank">{{ link.short_link }}</a>
-                    <button class="copy" onclick="copyToClipboard(this, '{{ request.host_url }}{{ link.short_link }}')" title="Copy link">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>
-            </td>
-            <td>{{ link.target_url if not link.is_file else link.filename }}</td>
-            <td>{{ link.description or "" }}</td>
-            <td>
-                <span class="badge {{ 'file' if link.is_file else 'url' }}">
-                    {{ 'File' if link.is_file else 'URL' }}
-                </span>
-            </td>
-            <td>
-                <a href="/admin/stats/{{ link.short_link }}" class="stats-link">
-                    {{ link.total_clicks }} clicks
-                    ({{ link.unique_visitors }} unique)
-                </a>
-            </td>
-            <td class="action-buttons">
-                <a href="/admin/edit/{{ link.short_link }}" class="button edit">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
-                <form method="POST" action="/admin/delete" style="display: inline;">
-                    <input type="hidden" name="short_link" value="{{ link.short_link }}">
-                    <button type="submit" class="delete">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+    <div class="links-table">
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+        </div>
+        {% include '_links_table.html' %}
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+let searchTimeout;
+const searchInput = document.getElementById("searchInput");
+const linksTable = document.querySelector(".links-table");
+const loadingOverlay = document.querySelector(".loading-overlay");
+
+async function performSearch() {
+    const searchTerm = searchInput.value;
+    
+    // Show loading overlay
+    loadingOverlay.style.display = "flex";
+    
+    try {
+        const response = await fetch(`/admin/search?q=${encodeURIComponent(searchTerm)}`);
+        if (!response.ok) throw new Error("Search failed");
+        
+        const html = await response.text();
+        const tableContainer = document.querySelector(".links-table");
+        tableContainer.innerHTML = html + tableContainer.querySelector(".loading-overlay").outerHTML;
+        
+        // Reinitialize copy buttons
+        initializeCopyButtons();
+    } catch (error) {
+        console.error("Search error:", error);
+    } finally {
+        loadingOverlay.style.display = "none";
+    }
+}
+
+searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(performSearch, 300);
+});
+
+function initializeCopyButtons() {
+    document.querySelectorAll(".copy").forEach(button => {
+        button.onclick = function(e) {
+            e.preventDefault();
+            const text = this.getAttribute("onclick").match(/'(.*?)'/)[1];
+            copyToClipboard(this, text);
+        };
+    });
+}
+
+// Initialize copy buttons on page load
+document.addEventListener("DOMContentLoaded", initializeCopyButtons);
+
 function copyToClipboard(button, text) {
     navigator.clipboard.writeText(text).then(() => {
         button.classList.add('copied');

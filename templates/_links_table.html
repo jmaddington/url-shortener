@@ -1,0 +1,52 @@
+<table>
+    <tr>
+        <th>Short Link</th>
+        <th>Target</th>
+        <th>Description</th>
+        <th>Type</th>
+        <th>Stats</th>
+        <th>Actions</th>
+    </tr>
+    {% for link in links %}
+    <tr>
+        <td>
+            <div style="display: flex; align-items: center;">
+                <a href="/{{ link.short_link }}" target="_blank">{{ link.short_link }}</a>
+                <button class="copy" onclick="copyToClipboard(this, '{{ request.host_url }}{{ link.short_link }}')" title="Copy link">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </td>
+        <td>{{ link.target_url if not link.is_file else link.filename }}</td>
+        <td>{{ link.description or "" }}</td>
+        <td>
+            <span class="badge {{ 'file' if link.is_file else 'url' }}">
+                {{ 'File' if link.is_file else 'URL' }}
+            </span>
+        </td>
+        <td>
+            <a href="/admin/stats/{{ link.short_link }}" class="stats-link">
+                {{ link.total_clicks }} clicks
+                ({{ link.unique_visitors }} unique)
+            </a>
+        </td>
+        <td class="action-buttons">
+            <a href="/admin/edit/{{ link.short_link }}" class="button edit">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <form method="POST" action="/admin/delete" style="display: inline;">
+                <input type="hidden" name="short_link" value="{{ link.short_link }}">
+                <button type="submit" class="delete">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </form>
+        </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="6" style="text-align: center; padding: 2rem;">
+            No links found matching your search.
+        </td>
+    </tr>
+    {% endfor %}
+</table>

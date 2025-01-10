@@ -207,6 +207,100 @@ def upload_file():
         
     return redirect('/admin')
 
+@app.route('/admin/edit/<short_link>', methods=['GET', 'POST'])
+@requires_auth
+def edit_link(short_link):
+    conn = get_db()
+    c = conn.cursor()
+    
+    if request.method == 'GET':
+        c.execute("SELECT * FROM links WHERE short_link = ?", (short_link,))
+        link = c.fetchone()
+        
+        if link is None:
+            abort(404)
+            
+        return render_template("edit.html", link=link)
+    
+    else:  # POST
+        # Get current link info
+        c.execute("SELECT * FROM links WHERE short_link = ?", (short_link,))
+        current_link = c.fetchone()
+        
+        if current_link is None:
+            abort(404)
+        
+        new_short_link = request.form["short_link"]
+        description = request.form.get("description", "")
+        
+        if new_short_link == "admin":
+            return "Cannot use reserved word \"admin\"", 400
+        
+        if current_link["is_file"]:
+            file = request.files.get("file")
+            if file and file.filename:
+                # Delete old file
+                try:
+                    os.remove(current_link["target_url"])
+                except OSError:
+                    pass
+                
+                # Save new file
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config["UPLOAD_FOLDER"], 
+                                    new_short_link + "_" + filename)
+                file.save(file_path)
+                
+                # Update database
+                if short_link == new_short_link:
+                    c.execute("""
+                        UPDATE links 
+                        SET target_url = ?, filename = ?, description = ?
+                        WHERE short_link = ?
+                    """, (file_path, filename, description, short_link))
+                else:
+                    c.execute("""
+                        INSERT OR REPLACE INTO links 
+                        (short_link, target_url, is_file, filename, created_by, description)
+                        VALUES (?, ?, 1, ?, ?, ?)
+                    """, (new_short_link, file_path, filename,
+                          session["user"].get("preferred_username"), description))
+                    c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
+            else:
+                # Just update description and short_link
+                if short_link == new_short_link:
+                    c.execute("""
+                        UPDATE links SET description = ? WHERE short_link = ?
+                    """, (description, short_link))
+                else:
+                    c.execute("""
+                        INSERT OR REPLACE INTO links 
+                        (short_link, target_url, is_file, filename, created_by, description)
+                        VALUES (?, ?, 1, ?, ?, ?)
+                    """, (new_short_link, current_link["target_url"],
+                          current_link["filename"],
+                          session["user"].get("preferred_username"), description))
+                    c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
+        else:
+            target_url = request.form["target_url"]
+            if short_link == new_short_link:
+                c.execute("""
+                    UPDATE links 
+                    SET target_url = ?, description = ?
+                    WHERE short_link = ?
+                """, (target_url, description, short_link))
+            else:
+                c.execute("""
+                    INSERT OR REPLACE INTO links 
+                    (short_link, target_url, is_file, created_by, description)
+                    VALUES (?, ?, 0, ?, ?)
+                """, (new_short_link, target_url,
+                      session["user"].get("preferred_username"), description))
+                c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
+        
+        conn.commit()
+        return redirect("/admin")
+
 @app.route('/admin/stats/<short_link>')
 @requires_auth
 def link_stats(short_link):
@@ -246,104 +340,6 @@ def redirect_link(short_link):
 
 @app.route('/admin/delete', methods=['POST'])
 @requires_auth
-@app.route("/admin/edit/<short_link>", methods=["GET"])
-@requires_auth
-def edit_link(short_link):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT * FROM links WHERE short_link = ?", (short_link,))
-    link = c.fetchone()
-    
-    if link is None:
-        abort(404)
-        
-    return render_template("edit.html", link=link)
-
-@app.route("/admin/edit/<short_link>", methods=["POST"])
-@requires_auth
-def update_link(short_link):
-    conn = get_db()
-    c = conn.cursor()
-    
-    # Get current link info
-    c.execute("SELECT * FROM links WHERE short_link = ?", (short_link,))
-    current_link = c.fetchone()
-    
-    if current_link is None:
-        abort(404)
-    
-    new_short_link = request.form["short_link"]
-    description = request.form.get("description", "")
-    
-    if new_short_link == "admin":
-        return "Cannot use reserved word \"admin\"", 400
-    
-    if current_link["is_file"]:
-        file = request.files.get("file")
-        if file and file.filename:
-            # Delete old file
-            try:
-                os.remove(current_link["target_url"])
-            except OSError:
-                pass
-            
-            # Save new file
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], 
-                                    new_short_link + "_" + filename)
-            file.save(file_path)
-            
-            # Update database
-            if short_link == new_short_link:
-                c.execute("""
-                    UPDATE links 
-                    SET target_url = ?, filename = ?, description = ?
-                    WHERE short_link = ?
-                """, (file_path, filename, description, short_link))
-            else:
-                c.execute("""
-                    INSERT OR REPLACE INTO links 
-                    (short_link, target_url, is_file, filename, created_by, description)
-                    VALUES (?, ?, 1, ?, ?, ?)
-                """, (new_short_link, file_path, filename,
-                      session["user"].get("preferred_username"), description))
-                c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
-        else:
-            # Just update description and short_link
-            if short_link == new_short_link:
-                c.execute("""
-                    UPDATE links SET description = ? WHERE short_link = ?
-                """, (description, short_link))
-            else:
-                c.execute("""
-                    INSERT OR REPLACE INTO links 
-                    (short_link, target_url, is_file, filename, created_by, description)
-                    VALUES (?, ?, 1, ?, ?, ?)
-                """, (new_short_link, current_link["target_url"],
-                      current_link["filename"],
-                      session["user"].get("preferred_username"), description))
-                c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
-    else:
-        target_url = request.form["target_url"]
-        if short_link == new_short_link:
-            c.execute("""
-                UPDATE links 
-                SET target_url = ?, description = ?
-                WHERE short_link = ?
-            """, (target_url, description, short_link))
-        else:
-            c.execute("""
-                INSERT OR REPLACE INTO links 
-                (short_link, target_url, is_file, created_by, description)
-                VALUES (?, ?, 0, ?, ?)
-            """, (new_short_link, target_url,
-                  session["user"].get("preferred_username"), description))
-            c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
-    
-    conn.commit()
-    return redirect("/admin")
-
-
 def delete_link():
     short_link = request.form['short_link']
     
@@ -369,6 +365,42 @@ def delete_link():
     return redirect('/admin')
 
 @app.teardown_appcontext
+@app.route("/admin/search")
+@requires_auth
+def search_links():
+    search_term = request.args.get("q", "").strip()
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    if search_term:
+        search_pattern = f"%{search_term}%"
+        c.execute("""
+            SELECT l.*, 
+                   COUNT(DISTINCT c.ip_address) as unique_visitors,
+                   COUNT(c.id) as total_clicks
+            FROM links l
+            LEFT JOIN clicks c ON l.short_link = c.short_link
+            WHERE l.short_link LIKE ? 
+               OR l.target_url LIKE ? 
+               OR l.filename LIKE ?
+               OR l.description LIKE ?
+            GROUP BY l.short_link
+        """, (search_pattern, search_pattern, search_pattern, search_pattern))
+    else:
+        c.execute("""
+            SELECT l.*, 
+                   COUNT(DISTINCT c.ip_address) as unique_visitors,
+                   COUNT(c.id) as total_clicks
+            FROM links l
+            LEFT JOIN clicks c ON l.short_link = c.short_link
+            GROUP BY l.short_link
+        """)
+    
+    links = c.fetchall()
+    return render_template("_links_table.html", links=links)
+
+
 def cleanup(exc):
     close_db()
 
