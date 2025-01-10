@@ -1,0 +1,31 @@
+services:
+  urlshortener:
+    build: .
+    ports:
+      - "8086:8080"
+    volumes:
+      # Bind mounts for persistent data
+      - ./:/app
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./saml:/app/saml
+      - ./flask_session:/app/flask_session
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # Named volumes as fallback if local directories don't exist
+  data:
+  uploads:
+  saml:
+  flask_session:
