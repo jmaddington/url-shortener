@@ -14,7 +14,7 @@ import base64
 from datetime import datetime
 
 from auth import requires_auth, init_saml_auth, prepare_flask_request
-from database import init_db, get_db, close_db, record_click, get_link_stats
+from database import init_db, get_db, close_db, record_click, get_link_stats, get_weekly_click_data
 from config import Config
 
 # Set up logging
@@ -603,6 +603,11 @@ def edit_link(short_link):
 @requires_auth
 def link_stats(short_link):
     stats = get_link_stats(short_link)
+    
+    # Add weekly click data (past 26 weeks)
+    weekly_clicks = get_weekly_click_data(short_link, num_weeks=26)
+    stats['weekly_clicks'] = weekly_clicks
+    
     return render_template('stats.html', short_link=short_link, stats=stats)
 
 @app.route('/<short_link>')

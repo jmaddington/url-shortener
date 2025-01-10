@@ -20,6 +20,21 @@
     color: #4a5568;
 }
 
+.chart-container {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto 2rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container canvas {
+    width: 100%;
+    height: 400px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -27,6 +42,7 @@ table {
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 2rem;
 }
 
 th, td {
@@ -46,6 +62,11 @@ tr:hover {
 }
 {% endblock %}
 
+{% block extra_head %}
+<!-- Load Chart.js from a CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
 <a href="/admin" class="back-link">← Back to Admin</a>
 
@@ -60,6 +81,11 @@ tr:hover {
         <span class="stat-label">Unique Visitors:</span>
         {{ stats.unique_visitors }}
     </div>
+</div>
+
+<div class="chart-container">
+    <h2 style="padding: 1rem;">Weekly Clicks (Last 26 Weeks)</h2>
+    <canvas id="clickChart"></canvas>
 </div>
 
 <div class="card">
@@ -81,4 +107,33 @@ tr:hover {
         {% endfor %}
     </table>
 </div>
+
+<script>
+    // We'll expect stats.weekly_clicks = [{ label: "", count: 0 }, ...]
+    const chartLabels = {{ stats.weekly_clicks|map(attribute='label')|list|tojson }};
+    const chartData = {{ stats.weekly_clicks|map(attribute='count')|list|tojson }};
+
+    const ctx = document.getElementById('clickChart').getContext('2d');
+    const clickChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: 'Weekly Clicks',
+                data: chartData,
+                backgroundColor: 'rgba(66, 153, 225, 0.6)',
+                borderColor: 'rgba(66, 153, 225, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

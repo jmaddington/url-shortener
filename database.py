@@ -1,5 +1,6 @@
 import sqlite3
 from flask import current_app, g
+import datetime
 import os
 
 def get_db():
@@ -57,3 +58,33 @@ def get_link_stats(short_link):
         'unique_visitors': unique_ips,
         'recent_clicks': recent_clicks
     }
+    
+def get_weekly_click_data(short_link, num_weeks=26):
+    """
+    Return a list of dicts, each with:
+    { 'label': 'YYYY-WW', 'count': <number_of_clicks_in_that_week> }
+    for the last `num_weeks` weeks.
+    """
+    now = datetime.datetime.utcnow()
+    cutoff = now - datetime.timedelta(weeks=num_weeks)
+    
+    db = get_db()
+    # We'll assume your `clicked_at` column is stored as a TEXT or TIMESTAMP.
+    # We'll group by year-week using strftime('%Y-%W', clicked_at).
+    rows = db.execute('''
+        SELECT strftime('%Y-%W', clicked_at) as week_label,
+               COUNT(*) as clicks
+        FROM clicks
+        WHERE short_link = ?
+          AND clicked_at >= ?
+        GROUP BY week_label
+        ORDER BY week_label
+    ''', (short_link, cutoff)).fetchall()
+    
+    results = []
+    for row in rows:
+        results.append({
+            'label': row['week_label'],  # e.g., "2025-03"
+            'count': row['clicks']
+        })
+    return results
