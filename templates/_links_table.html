@@ -1,3 +1,8 @@
+{% if total_links > 0 %}
+<div class="table-info">
+    Showing {{ links|length }} of {{ total_links }} links
+</div>
+
 <table>
     <tr>
         <th>Short Link</th>
@@ -42,11 +47,29 @@
             </form>
         </td>
     </tr>
-    {% else %}
-    <tr>
-        <td colspan="6" style="text-align: center; padding: 2rem;">
-            No links found matching your search.
-        </td>
-    </tr>
     {% endfor %}
 </table>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+        <button class="page-btn" onclick="changePage({{ page - 1 }})" title="Previous page">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    {% endif %}
+    
+    <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+    
+    {% if page < total_pages %}
+        <button class="page-btn" onclick="changePage({{ page + 1 }})" title="Next page">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="no-results">
+    No links found matching your search.
+</div>
+{% endif %}

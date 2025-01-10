@@ -150,7 +150,12 @@ def admin():
         GROUP BY l.short_link
     ''')
     links = c.fetchall()
-    return render_template('admin.html', 
+    return render_template("admin.html", 
+                         links=links,
+                         user=session.get("user"),
+                         page=page,
+                         total_pages=total_pages,
+                         total_links=total_links)
                          links=links,
                          user=session.get('user'))
 
@@ -189,7 +194,11 @@ def search_links():
     
     links = c.fetchall()
     logger.info(f"Found {len(links)} results")
-    return render_template('_links_table.html', links=links)
+    return render_template("_links_table.html",
+                         links=links,
+                         page=page,
+                         total_pages=total_pages,
+                         total_links=total_links)
 
 @app.route('/admin/create', methods=['POST'])
 @requires_auth

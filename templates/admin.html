@@ -227,6 +227,51 @@ tr:hover {
     animation: spin 1s linear infinite;
 }
 
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2rem;
+            gap: 1rem;
+        }
+
+        .page-btn {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .page-btn:hover {
+            background-color: #3182ce;
+        }
+
+        .page-btn:disabled {
+            background-color: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .table-info {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
@@ -313,14 +358,22 @@ const searchInput = document.getElementById("searchInput");
 const linksTable = document.querySelector(".links-table");
 const loadingOverlay = document.querySelector(".loading-overlay");
 
-function performSearch() {
+function changePage(newPage) {
     const searchTerm = searchInput.value;
+    const url = `/admin/search?q=${encodeURIComponent(searchTerm)}&page=${page}`;
+    performSearch(newPage);
+}
+
+
+function performSearch(page = 1) {
+    const searchTerm = searchInput.value;
+    const url = `/admin/search?q=${encodeURIComponent(searchTerm)}&page=${page}`;
     console.log("Searching for:", searchTerm);
     
     // Show loading overlay
     loadingOverlay.style.display = "flex";
     
-    fetch(`/admin/search?q=${encodeURIComponent(searchTerm)}`)
+    fetch(url)
         .then(response => {
             if (!response.ok) throw new Error("Search failed");
             return response.text();
