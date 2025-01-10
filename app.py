@@ -25,6 +25,12 @@ app = Flask(__name__)
 app.config.from_object(Config)
 Session(app)
 
+# Make sure this directory exists or is configured properly
+# e.g. app.config['UPLOAD_FOLDER'] = '/path/to/uploads'
+if not hasattr(app.config, 'UPLOAD_FOLDER'):
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 # Initialize database
 with app.app_context():
     init_db()
@@ -36,9 +42,15 @@ def _http_auth_required():
     return response
 
 def is_valid_url(url):
-    """Minimal check to ensure URL is http or https."""
+    """Minimal check to ensure URL is http or https, and has a netloc."""
     parsed = urlparse(url)
     return parsed.scheme in ['http', 'https'] and parsed.netloc
+
+def normalize_url(url):
+    """If the URL doesn’t start with http:// or https://, prepend https://."""
+    if url and not (url.startswith('http://') or url.startswith('https://')):
+        return 'https://' + url
+    return url
 
 @app.route('/download-repo')
 @requires_auth
@@ -257,11 +269,16 @@ def search_links():
 @app.route('/admin/create', methods=['POST'])
 @requires_auth
 def create_link():
+    """
+    Creates a new link that redirects to a URL (non-file).
+    If the user actually wants to upload a file, 
+    they should call the /admin/upload endpoint instead.
+    """
     short_link = request.form['short_link'].strip()
     target_url = request.form['target_url'].strip()
     description = request.form.get('description', '').strip()
     
-    # Optional fields for new features
+    # Optional fields
     expires_at = request.form.get('expires_at', '').strip()
     require_guid = request.form.get('require_guid')  # checkbox
     basic_auth_user = request.form.get('basic_auth_user', '').strip()
@@ -271,9 +288,12 @@ def create_link():
     if short_link == 'admin':
         return 'Cannot use reserved word "admin"', 400
     
-    # Optional: Validate the URL if you want to ensure only http/https
-    if not is_valid_url(target_url):
-        return "Invalid URL", 400
+    # Normalize URL first (prepend https:// if needed)
+    if target_url:
+        target_url = normalize_url(target_url)
+        # Now validate
+        if not is_valid_url(target_url):
+            return "Invalid URL", 400
     
     # If user checked the "require_guid" box, generate a GUID
     guid_required = None
@@ -312,6 +332,9 @@ def create_link():
 @app.route('/admin/upload', methods=['POST'])
 @requires_auth
 def upload_file():
+    """
+    Creates a new link that points to a file stored locally.
+    """
     if 'file' not in request.files:
         return 'No file part', 400
     file = request.files['file']
@@ -517,9 +540,13 @@ def edit_link(short_link):
         else:
             # Not a file -> URL
             target_url = request.form["target_url"].strip()
-            # Optional: Validate
-            if not is_valid_url(target_url):
-                return "Invalid URL", 400
+            
+            # Normalize if needed
+            if target_url:
+                target_url = normalize_url(target_url)
+                # Then validate
+                if not is_valid_url(target_url):
+                    return "Invalid URL", 400
             
             if short_link == new_short_link:
                 c.execute("""
