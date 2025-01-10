@@ -337,6 +337,7 @@ def upload_file():
     """
     if 'file' not in request.files:
         return 'No file part', 400
+    
     file = request.files['file']
     short_link = request.form['short_link'].strip()
     description = request.form.get('description', '').strip()
@@ -347,17 +348,19 @@ def upload_file():
     basic_auth_user = request.form.get('basic_auth_user', '').strip()
     basic_auth_pass = request.form.get('basic_auth_pass', '').strip()
     
+    # Validate short_link
     if short_link == 'admin':
         return 'Cannot use reserved word "admin"', 400
     
     if file.filename == '':
         return 'No selected file', 400
-        
+    
+    # Secure and save the uploaded file
     filename = secure_filename(file.filename)
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], short_link + '_' + filename)
     file.save(file_path)
     
-    # If user checked the "require_guid" box, generate a GUID
+    # If user checked "require_guid", generate a GUID
     guid_required = None
     if require_guid == 'on':
         guid_required = str(uuid.uuid4())
@@ -366,22 +369,23 @@ def upload_file():
     if not expires_at:
         expires_at = None
     
-    # If basic_auth_user or pass is empty, store NULL
+    # If either basic_auth_user or pass is empty, store NULL
     if not basic_auth_user:
         basic_auth_user = None
     if not basic_auth_pass:
         basic_auth_pass = None
     
+    # Insert (or replace) link record into DB
     conn = get_db()
     c = conn.cursor()
     c.execute('''
-        INSERT OR REPLACE INTO links 
+        INSERT OR REPLACE INTO links
         (short_link, target_url, is_file, filename, created_by, description,
-         expires_at, guid_required, basic_auth_user, basic_auth_pass) 
+         expires_at, guid_required, basic_auth_user, basic_auth_pass)
         VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         short_link,
-        file_path,
+        file_path,  # <-- This becomes target_url in the DB
         filename,
         session['user'].get('preferred_username'),
         description,
@@ -394,9 +398,13 @@ def upload_file():
     
     return redirect('/admin')
 
+
 @app.route('/admin/edit/<short_link>', methods=['GET', 'POST'])
 @requires_auth
 def edit_link(short_link):
+    """
+    Allows editing of an existing short_link (either a file-based link or a URL).
+    """
     conn = get_db()
     c = conn.cursor()
     
@@ -408,8 +416,9 @@ def edit_link(short_link):
             abort(404)
             
         return render_template("edit.html", link=link)
+    
     else:
-        # Get current link info
+        # Fetch the original row
         c.execute("SELECT * FROM links WHERE short_link = ?", (short_link,))
         current_link = c.fetchone()
         
@@ -427,6 +436,7 @@ def edit_link(short_link):
         if new_short_link == "admin":
             return "Cannot use reserved word \"admin\"", 400
         
+        # If user wants a GUID
         guid_required = None
         if require_guid == 'on':
             guid_required = str(uuid.uuid4())
@@ -435,31 +445,29 @@ def edit_link(short_link):
         if not expires_at:
             expires_at = None
         
-        # If basic_auth_user or pass is empty, store NULL
+        # If either basic_auth_user or pass is empty, store NULL
         if not basic_auth_user:
             basic_auth_user = None
         if not basic_auth_pass:
             basic_auth_pass = None
-
-        conn = get_db()
-        c = conn.cursor()
         
-        # If it's a file link
+        # If it's a file-based link
         if current_link["is_file"]:
             file = request.files.get("file")
             if file and file.filename:
-                # Delete old file
+                # (A) User uploaded a new file
                 try:
+                    # Delete the old file if it exists
                     os.remove(current_link["target_url"])
                 except OSError:
                     pass
                 
-                # Save new file
                 filename = secure_filename(file.filename)
                 file_path = os.path.join(app.config["UPLOAD_FOLDER"], new_short_link + "_" + filename)
                 file.save(file_path)
                 
                 if short_link == new_short_link:
+                    # Update same row
                     c.execute("""
                         UPDATE links
                         SET target_url = ?,
@@ -481,9 +489,9 @@ def edit_link(short_link):
                         short_link
                     ))
                 else:
-                    # Insert new row, delete old
+                    # If short_link changed, create new row and delete old
                     c.execute("""
-                        INSERT OR REPLACE INTO links 
+                        INSERT OR REPLACE INTO links
                         (short_link, target_url, is_file, filename, created_by, description,
                          expires_at, guid_required, basic_auth_user, basic_auth_pass)
                         VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
@@ -499,9 +507,11 @@ def edit_link(short_link):
                         basic_auth_pass
                     ))
                     c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
+            
             else:
-                # No new file, just update metadata
+                # (B) No new file uploaded; keep current file path & filename
                 if short_link == new_short_link:
+                    # Just update metadata
                     c.execute("""
                         UPDATE links
                         SET description = ?,
@@ -519,6 +529,7 @@ def edit_link(short_link):
                         short_link
                     ))
                 else:
+                    # Short link changed, so re‐insert with same file, remove old
                     c.execute("""
                         INSERT OR REPLACE INTO links
                         (short_link, target_url, is_file, filename, created_by, description,
@@ -538,17 +549,15 @@ def edit_link(short_link):
                     c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
         
         else:
-            # Not a file -> URL
+            # It's not a file link; it's a URL link
             target_url = request.form["target_url"].strip()
-            
-            # Normalize if needed
             if target_url:
                 target_url = normalize_url(target_url)
-                # Then validate
                 if not is_valid_url(target_url):
                     return "Invalid URL", 400
             
             if short_link == new_short_link:
+                # Update same row
                 c.execute("""
                     UPDATE links
                     SET target_url = ?,
@@ -568,6 +577,7 @@ def edit_link(short_link):
                     short_link
                 ))
             else:
+                # Short link changed -> insert new, remove old
                 c.execute("""
                     INSERT OR REPLACE INTO links
                     (short_link, target_url, is_file, created_by, description,
