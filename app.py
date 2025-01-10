@@ -365,44 +365,9 @@ def delete_link():
     return redirect('/admin')
 
 @app.teardown_appcontext
-@app.route("/admin/search")
-@requires_auth
-def search_links():
-    search_term = request.args.get("q", "").strip()
-    
-    conn = get_db()
-    c = conn.cursor()
-    
-    if search_term:
-        search_pattern = f"%{search_term}%"
-        c.execute("""
-            SELECT l.*, 
-                   COUNT(DISTINCT c.ip_address) as unique_visitors,
-                   COUNT(c.id) as total_clicks
-            FROM links l
-            LEFT JOIN clicks c ON l.short_link = c.short_link
-            WHERE l.short_link LIKE ? 
-               OR l.target_url LIKE ? 
-               OR l.filename LIKE ?
-               OR l.description LIKE ?
-            GROUP BY l.short_link
-        """, (search_pattern, search_pattern, search_pattern, search_pattern))
-    else:
-        c.execute("""
-            SELECT l.*, 
-                   COUNT(DISTINCT c.ip_address) as unique_visitors,
-                   COUNT(c.id) as total_clicks
-            FROM links l
-            LEFT JOIN clicks c ON l.short_link = c.short_link
-            GROUP BY l.short_link
-        """)
-    
-    links = c.fetchall()
-    return render_template("_links_table.html", links=links)
-
-
 def cleanup(exc):
-    close_db()
+    if hasattr(g, "db"):
+        g.db.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8081)
