@@ -37,11 +37,6 @@
                   but the href includes ?s=GUID if needed
                 -->
                 <a href="{{ href_value }}" target="_blank">{{ link.short_link }}</a>
-                <button class="copy"
-                        onclick="copyToClipboard(this, '{{ copy_url }}')"
-                        title="Copy link">
-                    <i class="fas fa-copy"></i>
-                </button>
             </div>
         </td>
         <td>
@@ -79,6 +74,13 @@
             </a>
         </td>
         <td class="action-buttons">
+
+            <a href="#" class="copy"
+                onclick="copyToClipboard(this, '{{ copy_url }}')"
+                title="Copy link">
+                <i class="fas fa-copy"></i>
+            </a>
+
             <!-- Pencil icon only, no text -->
             <a href="/admin/edit/{{ link.short_link }}" class="button edit" title="Edit">
                 <i class="fas fa-edit"></i>
