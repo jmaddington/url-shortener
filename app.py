@@ -1,12 +1,12 @@
 from flask import Flask, g, request, redirect, render_template, send_file, abort, session, url_for, make_response
-import os
-import tempfile
-import subprocess
 from werkzeug.utils import secure_filename
 from flask_session import Session
 from urllib.parse import urlparse
 import logging
 import shutil
+import os
+import tempfile
+import subprocess
 
 from auth import requires_auth, init_saml_auth, prepare_flask_request
 from database import init_db, get_db, close_db, record_click, get_link_stats
@@ -153,6 +153,43 @@ def admin():
     return render_template('admin.html', 
                          links=links,
                          user=session.get('user'))
+
+@app.route('/admin/search')
+@requires_auth
+def search_links():
+    search_term = request.args.get("q", "").strip()
+    logger.info(f"Searching for: {search_term}")
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    if search_term:
+        search_pattern = f"%{search_term}%"
+        c.execute("""
+            SELECT l.*, 
+                   COUNT(DISTINCT c.ip_address) as unique_visitors,
+                   COUNT(c.id) as total_clicks
+            FROM links l
+            LEFT JOIN clicks c ON l.short_link = c.short_link
+            WHERE l.short_link LIKE ? 
+               OR l.target_url LIKE ? 
+               OR l.filename LIKE ?
+               OR l.description LIKE ?
+            GROUP BY l.short_link
+        """, (search_pattern, search_pattern, search_pattern, search_pattern))
+    else:
+        c.execute("""
+            SELECT l.*, 
+                   COUNT(DISTINCT c.ip_address) as unique_visitors,
+                   COUNT(c.id) as total_clicks
+            FROM links l
+            LEFT JOIN clicks c ON l.short_link = c.short_link
+            GROUP BY l.short_link
+        """)
+    
+    links = c.fetchall()
+    logger.info(f"Found {len(links)} results")
+    return render_template('_links_table.html', links=links)
 
 @app.route('/admin/create', methods=['POST'])
 @requires_auth
