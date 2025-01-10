@@ -1,7 +1,7 @@
 import os
 import tempfile
 import subprocess
-from flask import Flask, request, redirect, render_template_string, send_file, abort, session, url_for, make_response
+from flask import Flask, request, redirect, render_template, send_file, abort, session, url_for, make_response
 from werkzeug.utils import secure_filename
 from flask_session import Session
 from urllib.parse import urlparse
@@ -24,293 +24,255 @@ Session(app)
 with app.app_context():
     init_db()
 
-# Admin panel HTML template
-ADMIN_TEMPLATE = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>URL Shortener Admin</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-            padding: 2rem;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        h1 {
-            color: #2d3748;
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        h2 {
-            color: #4a5568;
-            font-size: 1.5rem;
-            margin: 2rem 0 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: #4a5568;
-        }
-
-        input[type="text"],
-        input[type="url"],
-        textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-family: inherit;
-            transition: border-color 0.2s;
-            resize: vertical;
-        }
-
-        textarea:focus {
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-        }
-
-
-        input[type="file"] {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1rem;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus,
-        input[type="url"]:focus {
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-        }
-
-        button {
-            background-color: #4299e1;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        button:hover {
-            background-color: #3182ce;
-        }
-
-        button.delete {
-            background-color: #e53e3e;
-        }
-
-        button.delete:hover {
-            background-color: #c53030;
-        }
-
-        button.copy {
-            background-color: #48bb78;
-            padding: 0.5rem 1rem;
-            margin-left: 0.5rem;
-        }
-
-        button.copy:hover {
-            background-color: #38a169;
-        }
-
-        button.copy.copied {
-            background-color: #68d391;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        th {
-            background-color: #f7fafc;
-            font-weight: 600;
-            color: #4a5568;
-        }
-
-        tr:hover {
-            background-color: #f7fafc;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-
-        .badge.url {
-            background-color: #ebf4ff;
-            color: #4299e1;
-        }
-
-        .badge.file {
-            background-color: #f0fff4;
-            color: #48bb78;
-        }
-
-        .user-info {
-            text-align: right;
-            margin-bottom: 1rem;
-            color: #4a5568;
-        }
-
-        .user-info .user-name {
-            font-weight: 500;
-            color: #2d3748;
-        }
-
-        .logout-btn {
-            background-color: #718096;
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-            margin-left: 0.5rem;
-        }
-
-        .logout-btn:hover {
-            background-color: #4a5568;
-        }
-
-        .download-btn {
-            background-color: #6B7280;
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-            margin-left: 0.5rem;
-            text-decoration: none;
-            color: white;
-            border-radius: 6px;
-            display: inline-block;
-        }
-
-        .download-btn:hover {
-            background-color: #4B5563;
-        }
-
-        .download-btn i {
-            margin-right: 0.5rem;
-        }
-
-        .copy-tooltip {
-            position: fixed;
-            background: #1a202c;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .stats-link {
-            color: #4299e1;
-            text-decoration: none;
-            margin-left: 1rem;
-        }
-
-        .stats-link:hover {
-            text-decoration: underline;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-
-            .card {
-                padding: 1rem;
-            }
-
-            table {
-                display: block;
-                overflow-x: auto;
-                white-space: nowrap;
-            }
-
-            th, td {
-                padding: 0.75rem;
-            }
-        }
-
-        .forms-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="user-info">
-            {% if user %}
-                Logged in as <span class="user-name">{{ user.name }}</span>
-                <a href="/download-repo" class="download-btn">
-                    <i class="fas fa-download"></i> Download Repository
-                </a>
-                <a href="/sso/logout" class="button logout-btn">Logout</a>
-            {% endif %}
-        </div>
-
-        <h1>URL Shortener Admin</h1>
+@app.route('/download-repo')
+@requires_auth
+def download_repo():
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create archive of the current directory, excluding certain paths
+        repo_dir = os.getcwd()
+        archive_path = os.path.join(temp_dir, 'urlshortener.zip')
         
-        <div class="forms-container">
-            <div class="card">
-                <h2>Create URL Redirect</h2>
-                <form method="POST" action="/admin/create">
+        try:
+            # Use git archive to create a zip of the repo
+            subprocess.run([
+                'git', 'archive', 
+                '--format=zip',
+                '--output', archive_path,
+                'HEAD'
+            ], check=True)
+            
+            return send_file(
+                archive_path,
+                as_attachment=True,
+                download_name='urlshortener.zip',
+                mimetype='application/zip'
+            )
+        except Exception as e:
+            logger.error(f"Error creating repository archive: {str(e)}")
+            return "Error creating repository archive", 500
+
+@app.route('/sso/login')
+def sso_login():
+    req = prepare_flask_request(request)
+    auth = init_saml_auth(req)
+    return redirect(auth.login())
+
+@app.route('/sso/metadata')
+def metadata():
+    req = prepare_flask_request(request)
+    auth = init_saml_auth(req)
+    settings = auth.get_settings()
+    metadata = settings.get_sp_metadata()
+    errors = settings.validate_metadata(metadata)
+
+    if len(errors) == 0:
+        resp = make_response(metadata, 200)
+        resp.headers['Content-Type'] = 'text/xml'
+    else:
+        resp = make_response(', '.join(errors), 500)
+    return resp
+
+@app.route('/sso/acs', methods=['POST'])
+def acs():
+    req = prepare_flask_request(request)
+    auth = init_saml_auth(req)
+    
+    logger.info("Processing SAML response")
+    auth.process_response()
+    errors = auth.get_errors()
+    
+    if errors:
+        logger.error(f"SAML Authentication errors: {errors}")
+        logger.error(f"Last error reason: {auth.get_last_error_reason()}")
+        return f'Authentication failed: {", ".join(errors)}', 401
+    
+    if not auth.is_authenticated():
+        logger.error("SAML Authentication failed: User not authenticated")
+        return 'Authentication failed: Not authenticated', 401
+
+    # Get user attributes
+    attributes = auth.get_attributes()
+    name_id = auth.get_nameid()
+    logger.info(f"User authenticated. NameID: {name_id}")
+    logger.info(f"User attributes: {attributes}")
+
+    # Store user information in session
+    session['samlUserdata'] = attributes
+    session['samlNameId'] = name_id
+    session['user'] = {
+        'preferred_username': name_id,
+        'name': attributes.get('displayName', [name_id])[0] if attributes else name_id
+    }
+
+    # Redirect to the next URL or admin page
+    if 'next_url' in session:
+        next_url = session.pop('next_url')
+        logger.info(f"Redirecting to: {next_url}")
+        return redirect(next_url)
+    return redirect(url_for('admin'))
+
+@app.route('/sso/sls')
+def sls():
+    req = prepare_flask_request(request)
+    auth = init_saml_auth(req)
+    url = auth.process_slo(delete_session_cb=lambda: session.clear())
+    errors = auth.get_errors()
+    if len(errors) == 0:
+        if url is not None:
+            return redirect(url)
+        return redirect(url_for('admin'))
+    return 'Logout failed', 500
+
+@app.route('/sso/logout')
+def logout():
+    req = prepare_flask_request(request)
+    auth = init_saml_auth(req)
+    name_id = session.get('samlNameId')
+    session_index = session.get('samlSessionIndex')
+    if name_id is None and session_index is None:
+        session.clear()
+        return redirect(url_for('admin'))
+    else:
+        return redirect(auth.logout())
+
+@app.route('/admin')
+@requires_auth
+def admin():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        SELECT l.*, 
+               COUNT(DISTINCT c.ip_address) as unique_visitors,
+               COUNT(c.id) as total_clicks
+        FROM links l
+        LEFT JOIN clicks c ON l.short_link = c.short_link
+        GROUP BY l.short_link
+    ''')
+    links = c.fetchall()
+    return render_template('admin.html', 
+                         links=links,
+                         user=session.get('user'))
+
+@app.route('/admin/create', methods=['POST'])
+@requires_auth
+def create_link():
+    short_link = request.form['short_link']
+    target_url = request.form['target_url']
+    description = request.form.get('description', '')
+    
+    if short_link == 'admin':
+        return 'Cannot use reserved word "admin"', 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO links 
+        (short_link, target_url, is_file, created_by, description) 
+        VALUES (?, ?, 0, ?, ?)
+    ''', (short_link, target_url, session['user'].get('preferred_username'), description))
+    conn.commit()
+    return redirect('/admin')
+
+@app.route('/admin/upload', methods=['POST'])
+@requires_auth
+def upload_file():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    file = request.files['file']
+    short_link = request.form['short_link']
+    description = request.form.get('description', '')
+    
+    if short_link == 'admin':
+        return 'Cannot use reserved word "admin"', 400
+    
+    if file.filename == '':
+        return 'No selected file', 400
+        
+    if file:
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], 
+                                short_link + '_' + filename)
+        file.save(file_path)
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR REPLACE INTO links 
+            (short_link, target_url, is_file, filename, created_by, description) 
+            VALUES (?, ?, 1, ?, ?, ?)
+        ''', (short_link, file_path, filename, 
+              session['user'].get('preferred_username'), description))
+        conn.commit()
+        
+    return redirect('/admin')
+
+@app.route('/admin/stats/<short_link>')
+@requires_auth
+def link_stats(short_link):
+    stats = get_link_stats(short_link)
+    return render_template('stats.html', short_link=short_link, stats=stats)
+
+@app.route('/<short_link>')
+def redirect_link(short_link):
+    if short_link == 'admin':
+        return redirect('/admin')
+        
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        SELECT target_url, is_file, filename 
+        FROM links 
+        WHERE short_link = ?
+    ''', (short_link,))
+    result = c.fetchone()
+    
+    if result is None:
+        abort(404)
+    
+    # Record the click
+    record_click(
+        short_link=short_link,
+        ip_address=request.remote_addr,
+        user_agent=request.user_agent.string,
+        referer=request.referrer
+    )
+        
+    if result['is_file']:  # If it's a file
+        return send_file(result['target_url'], 
+                        download_name=result['filename'])
+    else:  # If it's a URL
+        return redirect(result['target_url'])
+
+@app.route('/admin/delete', methods=['POST'])
+@requires_auth
+def delete_link():
+    short_link = request.form['short_link']
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Get file info before deletion
+    c.execute('SELECT is_file, target_url FROM links WHERE short_link = ?', 
+              (short_link,))
+    result = c.fetchone()
+    
+    if result and result['is_file']:
+        # Delete the file if it exists
+        try:
+            os.remove(result['target_url'])
+        except OSError:
+            pass
+    
+    # Delete from database
+    c.execute('DELETE FROM links WHERE short_link = ?', (short_link,))
+    conn.commit()
+    
+    return redirect('/admin')
+
+@app.teardown_appcontext
+def cleanup(exc):
+    close_db()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8081)
