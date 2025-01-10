@@ -342,7 +342,7 @@ def upload_file():
     short_link = request.form['short_link'].strip()
     description = request.form.get('description', '').strip()
     
-    # Optional fields for new features
+    # Optional fields
     expires_at = request.form.get('expires_at', '').strip()
     require_guid = request.form.get('require_guid')  # checkbox
     basic_auth_user = request.form.get('basic_auth_user', '').strip()
@@ -355,27 +355,28 @@ def upload_file():
     if file.filename == '':
         return 'No selected file', 400
     
-    # Secure and save the uploaded file
+    # Secure the filename
     filename = secure_filename(file.filename)
+    
+    # Save the file. Example path: "uploads/<short_link>_<actualfilename>"
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], short_link + '_' + filename)
     file.save(file_path)
     
-    # If user checked "require_guid", generate a GUID
+    # Possibly generate GUID
     guid_required = None
     if require_guid == 'on':
         guid_required = str(uuid.uuid4())
     
-    # If expires_at is empty, store NULL
+    # If expires_at is empty, store None/NULL
     if not expires_at:
         expires_at = None
     
-    # If either basic_auth_user or pass is empty, store NULL
+    # If either basic_auth_user or pass is empty, store None/NULL
     if not basic_auth_user:
         basic_auth_user = None
     if not basic_auth_pass:
         basic_auth_pass = None
     
-    # Insert (or replace) link record into DB
     conn = get_db()
     c = conn.cursor()
     c.execute('''
@@ -385,8 +386,8 @@ def upload_file():
         VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         short_link,
-        file_path,  # <-- This becomes target_url in the DB
-        filename,
+        file_path,  # The local path goes into target_url
+        filename,   # The original uploaded filename
         session['user'].get('preferred_username'),
         description,
         expires_at,

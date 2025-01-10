@@ -74,9 +74,8 @@ button:hover {
 }
 
 .delete:hover {
-    color:rgb(119, 31, 31);
+    color: rgb(119, 31, 31);
 }
-
 
 button.copy {
     background-color: #48bb78;
@@ -316,6 +315,7 @@ tr:hover {
 <!-- Single form for either URL or File creation -->
 <div class="card">
     <h2>Create a New Link</h2>
+    <!-- Default action is /admin/create (URL). We'll override it for files via JS. -->
     <form method="POST" action="/admin/create" enctype="multipart/form-data" id="createForm">
         <div class="form-group">
             <label>Short Link:</label>
@@ -407,19 +407,27 @@ tr:hover {
 
 {% block scripts %}
 <script>
-// Handle toggling between URL/File fields
+// Handle toggling between URL/File fields AND form action
 const linkTypeRadios = document.querySelectorAll('input[name="link_type"]');
 const urlFields = document.getElementById("urlFields");
 const fileFields = document.getElementById("fileFields");
+const createForm = document.getElementById("createForm");
 
+// When user switches between "URL" and "File", toggle fields and update form action
 linkTypeRadios.forEach(radio => {
     radio.addEventListener("change", () => {
         if (radio.value === "url" && radio.checked) {
+            // Show URL fields, hide file fields
             urlFields.style.display = "block";
             fileFields.style.display = "none";
+            // Submit to /admin/create
+            createForm.action = "/admin/create";
         } else if (radio.value === "file" && radio.checked) {
+            // Show file fields, hide URL fields
             urlFields.style.display = "none";
             fileFields.style.display = "block";
+            // Submit to /admin/upload
+            createForm.action = "/admin/upload";
         }
     });
 });
