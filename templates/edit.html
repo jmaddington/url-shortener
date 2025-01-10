@@ -17,6 +17,7 @@ label {
 input[type="text"],
 input[type="url"],
 input[type="file"],
+input[type="datetime-local"],
 textarea {
     width: 100%;
     padding: 0.75rem;
@@ -33,6 +34,7 @@ textarea {
 
 input[type="text"]:focus,
 input[type="url"]:focus,
+input[type="datetime-local"]:focus,
 textarea:focus {
     outline: none;
     border-color: #4299e1;
@@ -87,6 +89,16 @@ button.primary:hover {
     color: #718096;
     margin-top: 0.25rem;
 }
+
+.guid-display {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background-color: #edf2f7;
+    border-radius: 6px;
+    color: #2d3748;
+    font-size: 0.875rem;
+    word-wrap: break-word;
+}
 {% endblock %}
 
 {% block content %}
@@ -119,6 +131,47 @@ button.primary:hover {
         <div class="form-group">
             <label>Description:</label>
             <textarea name="description">{{ link.description or "" }}</textarea>
+        </div>
+
+        <!-- Display current GUID, if any -->
+        {% if link.guid_required %}
+        <div class="guid-display">
+            <strong>Current GUID:</strong> {{ link.guid_required }}
+        </div>
+        {% endif %}
+
+        <!-- Use datetime-local for expiration -->
+        <div class="form-group">
+            <label>Expires At:</label>
+            <input type="datetime-local" 
+                   name="expires_at" 
+                   value="{{ link.expires_at or "" }}">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="require_guid" style="margin-right: 5px;">
+                Require GUID Password?
+            </label>
+            <div style="font-size: 0.875rem; color: #718096;">
+                (If checked, a new GUID will be generated.)
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Basic Auth Username:</label>
+            <input type="text" 
+                   name="basic_auth_user" 
+                   value="{{ link.basic_auth_user or "" }}"
+                   placeholder="Enter username if needed">
+        </div>
+
+        <div class="form-group">
+            <label>Basic Auth Password:</label>
+            <input type="text" 
+                   name="basic_auth_pass" 
+                   value="{{ link.basic_auth_pass or "" }}"
+                   placeholder="Enter password if needed">
         </div>
 
         <div class="button-group">

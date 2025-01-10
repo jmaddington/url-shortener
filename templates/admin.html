@@ -14,9 +14,11 @@ label {
     color: #4a5568;
 }
 
+/* Basic input styling */
 input[type="text"],
 input[type="url"],
 input[type="file"],
+input[type="datetime-local"],
 textarea {
     width: 100%;
     padding: 0.75rem;
@@ -33,12 +35,15 @@ textarea {
 
 input[type="text"]:focus,
 input[type="url"]:focus,
+input[type="file"]:focus,
+input[type="datetime-local"]:focus,
 textarea:focus {
     outline: none;
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
 }
 
+/* Buttons */
 button {
     background-color: #4299e1;
     color: white;
@@ -74,6 +79,21 @@ button.copy:hover {
 
 button.copy.copied {
     background-color: #68d391;
+}
+
+.file-info {
+    font-size: 0.875rem;
+    color: #718096;
+    margin-top: 0.25rem;
+}
+
+/* Card, table, badges, etc. */
+.card {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 table {
@@ -120,48 +140,7 @@ tr:hover {
     color: #48bb78;
 }
 
-.forms-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    margin-bottom: 2rem;
-}
-
-.stats-link {
-    color: #4299e1;
-    text-decoration: none;
-    margin-left: 1rem;
-}
-
-.stats-link:hover {
-    text-decoration: underline;
-}
-
-.button.edit {
-    background-color: #6B7280;
-    color: white;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    margin-right: 0.5rem;
-    display: inline-block;
-}
-
-.button.edit:hover {
-    background-color: #4B5563;
-}
-
-.action-buttons {
-    white-space: nowrap;
-}
-
-.file-info {
-    font-size: 0.875rem;
-    color: #718096;
-    margin-top: 0.25rem;
-}
-
+/* Search & table containers */
 .search-container {
     margin-bottom: 1rem;
 }
@@ -227,50 +206,50 @@ tr:hover {
     animation: spin 1s linear infinite;
 }
 
-        .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 2rem;
-            gap: 1rem;
-        }
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2rem;
+    gap: 1rem;
+}
 
-        .page-btn {
-            background-color: #4299e1;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
+.page-btn {
+    background-color: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
 
-        .page-btn:hover {
-            background-color: #3182ce;
-        }
+.page-btn:hover {
+    background-color: #3182ce;
+}
 
-        .page-btn:disabled {
-            background-color: #cbd5e0;
-            cursor: not-allowed;
-        }
+.page-btn:disabled {
+    background-color: #cbd5e0;
+    cursor: not-allowed;
+}
 
-        .page-info {
-            color: #4a5568;
-            font-weight: 500;
-        }
+.page-info {
+    color: #4a5568;
+    font-weight: 500;
+}
 
-        .table-info {
-            color: #718096;
-            margin-bottom: 1rem;
-            font-size: 0.875rem;
-        }
+.table-info {
+    color: #718096;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
 
-        .no-results {
-            text-align: center;
-            padding: 2rem;
-            color: #718096;
-            font-size: 1.1rem;
-        }
+.no-results {
+    text-align: center;
+    padding: 2rem;
+    color: #718096;
+    font-size: 1.1rem;
+}
 
 @keyframes spin {
     to { transform: rotate(360deg); }
@@ -287,50 +266,114 @@ tr:hover {
         padding: 0.75rem;
     }
 }
+
+/* Accordion style for advanced options */
+.accordion {
+    margin-top: 1rem;
+}
+
+.accordion-header {
+    background-color: #e2e8f0;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.accordion-header:hover {
+    background-color: #cbd5e0;
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease-out;
+    background: #f7fafc;
+    margin-top: 0.5rem;
+    border-radius: 6px;
+    padding: 0 1rem;
+}
+
+.accordion-content.open {
+    padding: 1rem;
+}
 {% endblock %}
 
 {% block content %}
 <h1>URL Shortener Admin</h1>
 
-<div class="forms-container">
-    <div class="card">
-        <h2>Create URL Redirect</h2>
-        <form method="POST" action="/admin/create">
-            <div class="form-group">
-                <label>Short Link:</label>
-                <input type="text" name="short_link" required placeholder="e.g., my-link">
-            </div>
-            <div class="form-group">
-                <label>Target URL:</label>
-                <input type="url" name="target_url" required placeholder="https://example.com">
-            </div>
-            <div class="form-group">
-                <label>Description:</label>
-                <textarea name="description" placeholder="Optional description"></textarea>
-            </div>
-            <button type="submit">Create URL Link</button>
-        </form>
-    </div>
+<!-- Single form for either URL or File creation -->
+<div class="card">
+    <h2>Create a New Link</h2>
+    <form method="POST" action="/admin/create" enctype="multipart/form-data" id="createForm">
+        <div class="form-group">
+            <label>Short Link:</label>
+            <input type="text" name="short_link" required placeholder="e.g., my-link">
+        </div>
+        
+        <!-- Radio buttons to select link type -->
+        <div class="form-group">
+            <label style="margin-bottom: 0.25rem;">Link Type:</label>
+            <label style="margin-right: 1rem;">
+                <input type="radio" name="link_type" value="url" checked>
+                URL
+            </label>
+            <label>
+                <input type="radio" name="link_type" value="file">
+                File
+            </label>
+        </div>
 
-    <div class="card">
-        <h2>Upload File</h2>
-        <form method="POST" action="/admin/upload" enctype="multipart/form-data">
-            <div class="form-group">
-                <label>Short Link:</label>
-                <input type="text" name="short_link" required placeholder="e.g., my-file">
+        <!-- Target URL field (shown when link_type=URL) -->
+        <div class="form-group" id="urlFields">
+            <label>Target URL:</label>
+            <input type="url" name="target_url" placeholder="https://example.com">
+        </div>
+
+        <!-- File upload field (shown when link_type=File) -->
+        <div class="form-group" id="fileFields" style="display: none;">
+            <label>Select File:</label>
+            <input type="file" name="file">
+            <div class="file-info">Maximum file size: 500MB</div>
+        </div>
+
+        <div class="form-group">
+            <label>Description:</label>
+            <textarea name="description" placeholder="Optional description"></textarea>
+        </div>
+
+        <!-- Accordion for advanced settings -->
+        <div class="accordion">
+            <div class="accordion-header" id="advancedToggle">
+                Advanced Options <i class="fas fa-chevron-down" style="float: right; margin-top: 3px;"></i>
             </div>
-            <div class="form-group">
-                <label>File:</label>
-                <input type="file" name="file" required>
-                <div class="file-info">Maximum file size: 500MB</div>
+            <div class="accordion-content" id="advancedContent">
+                <!-- Expires At -->
+                <div class="form-group">
+                    <label>Expires At:</label>
+                    <input type="datetime-local" name="expires_at">
+                </div>
+                <!-- GUID -->
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="require_guid" style="margin-right: 5px;">
+                        Require GUID Password?
+                    </label>
+                </div>
+                <!-- Basic Auth -->
+                <div class="form-group">
+                    <label>Basic Auth Username:</label>
+                    <input type="text" name="basic_auth_user" placeholder="Enter username if needed">
+                </div>
+                <div class="form-group">
+                    <label>Basic Auth Password:</label>
+                    <input type="text" name="basic_auth_pass" placeholder="Enter password if needed">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Description:</label>
-                <textarea name="description" placeholder="Optional description"></textarea>
-            </div>
-            <button type="submit">Upload File</button>
-        </form>
-    </div>
+        </div>
+
+        <button type="submit" style="margin-top: 1.5rem;">Create Link</button>
+    </form>
 </div>
 
 <div class="search-container card">
@@ -353,17 +396,48 @@ tr:hover {
 
 {% block scripts %}
 <script>
+// Handle toggling between URL/File fields
+const linkTypeRadios = document.querySelectorAll('input[name="link_type"]');
+const urlFields = document.getElementById("urlFields");
+const fileFields = document.getElementById("fileFields");
+
+linkTypeRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+        if (radio.value === "url" && radio.checked) {
+            urlFields.style.display = "block";
+            fileFields.style.display = "none";
+        } else if (radio.value === "file" && radio.checked) {
+            urlFields.style.display = "none";
+            fileFields.style.display = "block";
+        }
+    });
+});
+
+// Accordion for advanced options
+const advancedToggle = document.getElementById("advancedToggle");
+const advancedContent = document.getElementById("advancedContent");
+let advancedOpen = false;
+
+advancedToggle.addEventListener("click", () => {
+    advancedOpen = !advancedOpen;
+    if (advancedOpen) {
+        advancedContent.classList.add("open");
+        advancedContent.style.maxHeight = advancedContent.scrollHeight + "px";
+    } else {
+        advancedContent.classList.remove("open");
+        advancedContent.style.maxHeight = "0";
+    }
+});
+
+// Searching & pagination
 let searchTimeout;
 const searchInput = document.getElementById("searchInput");
 const linksTable = document.querySelector(".links-table");
 const loadingOverlay = document.querySelector(".loading-overlay");
 
 function changePage(newPage) {
-    const searchTerm = searchInput.value;
-    const url = `/admin/search?q=${encodeURIComponent(searchTerm)}&page=${page}`;
     performSearch(newPage);
 }
-
 
 function performSearch(page = 1) {
     const searchTerm = searchInput.value;
@@ -405,6 +479,7 @@ searchInput.addEventListener("input", () => {
     searchTimeout = setTimeout(performSearch, 300);
 });
 
+// Copy-to-clipboard
 function initializeCopyButtons() {
     document.querySelectorAll(".copy").forEach(button => {
         button.onclick = function(e) {

@@ -1,4 +1,164 @@
-import glob
+# URL Shortener with File Hosting
+
+A simple URL shortener and file hosting service built with Flask, featuring SSO authentication and click tracking.
+
+## Features
+
+- Create custom short links for URLs
+- Upload and host files with custom short links
+- Copy short links to clipboard
+- Admin interface for managing links
+- File and URL deletion
+- Click tracking with statistics
+- Single Sign-On with Microsoft Entra ID
+- Responsive design
+
+## Setup
+
+1. Install requirements:
+```bash
+pip install -r requirements.txt
+```
+
+2. Configure environment variables in `.env`:
+```bash
+# Create from .env.sample
+cp .env.sample .env
+
+# Edit .env with your settings
+SECRET_KEY=your-secret-key
+ENABLE_SSO=true  # or false for local auth
+FLASK_DEBUG=false  # set to true for development
+```
+
+3. Run the application:
+```bash
+python app.py
+```
+
+4. Access the admin interface at:
+```
+http://localhost:8080/admin
+```
+
+## File Storage
+
+- Uploaded files are stored in the `uploads/` directory
+- Files are named as `{short_link}_{original_filename}`
+- Database records in SQLite (`shortener.db`)
+  - File metadata stored in `links` table
+  - Click tracking in `clicks` table
+
+## Database Schema
+
+### Links Table
+```sql
+CREATE TABLE links (
+    short_link TEXT PRIMARY KEY,
+    target_url TEXT NOT NULL,
+    is_file INTEGER NOT NULL DEFAULT 0,
+    filename TEXT,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Clicks Table
+```sql
+CREATE TABLE clicks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    short_link TEXT NOT NULL,
+    ip_address TEXT NOT NULL,
+    user_agent TEXT,
+    referer TEXT,
+    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (short_link) REFERENCES links(short_link) ON DELETE CASCADE
+);
+```
+
+
+## Docker Deployment
+
+### Quick Start with Docker Compose
+
+1. Run the setup script:
+```bash
+./setup.sh
+```
+
+2. Edit the `.env` file with your settings:
+```bash
+nano .env
+```
+
+3. Start the application:
+```bash
+docker-compose up -d
+```
+
+4. Access the admin interface at:
+```
+http://localhost:8080/admin
+```
+
+### Directory Structure
+
+The setup creates the following directory structure:
+```
+.
+├── data/           # SQLite database storage
+├── uploads/        # Uploaded files storage
+├── saml/          # SAML configuration
+└── flask_session/ # Session data
+```
+
+### Docker Configuration
+
+The Docker setup includes:
+- Resource limits (1 CPU, 1GB RAM)
+- Health checks
+- Automatic restart
+- Bind mounts for persistent data
+- Non-root user execution
+- Production-grade WSGI server (Gunicorn)
+
+### Manual Docker Build
+
+If you prefer to run without Docker Compose:
+
+```bash
+# Build the image
+docker build -t urlshortener .
+
+# Run the container
+docker run -d \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/uploads:/app/uploads \
+  -v $(pwd)/saml:/app/saml \
+  -v $(pwd)/flask_session:/app/flask_session \
+  --env-file .env \
+  --name urlshortener \
+  urlshortener
+```
+
+### Container Management
+
+```bash
+# View logs
+docker-compose logs -f
+
+# Restart the application
+docker-compose restart
+
+# Stop the application
+docker-compose down
+
+# Update after code changes
+docker-compose up -d --build
+```
+
+[Rest of previous content...]import glob
 import zipfile
 from flask import Flask, g, request, redirect, render_template, send_file, abort, session, url_for, make_response
 from werkzeug.utils import secure_filename
@@ -9,9 +169,6 @@ import shutil
 import os
 import tempfile
 import subprocess
-import uuid
-import base64
-from datetime import datetime
 
 from auth import requires_auth, init_saml_auth, prepare_flask_request
 from database import init_db, get_db, close_db, record_click, get_link_stats
@@ -28,17 +185,6 @@ Session(app)
 # Initialize database
 with app.app_context():
     init_db()
-
-def _http_auth_required():
-    """Helper function to return a 401 with WWW-Authenticate header."""
-    response = make_response("Authentication required", 401)
-    response.headers["WWW-Authenticate"] = 'Basic realm="URLShortener"'
-    return response
-
-def is_valid_url(url):
-    """Minimal check to ensure URL is http or https."""
-    parsed = urlparse(url)
-    return parsed.scheme in ['http', 'https'] and parsed.netloc
 
 @app.route('/download-repo')
 @requires_auth
@@ -167,7 +313,7 @@ def admin():
     total_links = c.fetchone()["count"]
     total_pages = (total_links + per_page - 1) // per_page
     
-    # Get paginated links (including basic info like unique visitors, etc.)
+    # Get paginated links
     c.execute("""
         SELECT l.*, 
                COUNT(DISTINCT c.ip_address) as unique_visitors,
@@ -181,11 +327,11 @@ def admin():
     
     links = c.fetchall()
     return render_template("admin.html", 
-                           links=links,
-                           user=session.get("user"),
-                           page=page,
-                           total_pages=total_pages,
-                           total_links=total_links)
+                         links=links,
+                         user=session.get("user"),
+                         page=page,
+                         total_pages=total_pages,
+                         total_links=total_links)
 
 @app.route('/admin/search')
 @requires_auth
@@ -249,63 +395,28 @@ def search_links():
     links = c.fetchall()
     logger.info(f"Found {total_links} results, showing page {page} of {total_pages}")
     return render_template("_links_table.html",
-                           links=links,
-                           page=page,
-                           total_pages=total_pages,
-                           total_links=total_links)
+                         links=links,
+                         page=page,
+                         total_pages=total_pages,
+                         total_links=total_links)
 
 @app.route('/admin/create', methods=['POST'])
 @requires_auth
 def create_link():
-    short_link = request.form['short_link'].strip()
-    target_url = request.form['target_url'].strip()
-    description = request.form.get('description', '').strip()
+    short_link = request.form['short_link']
+    target_url = request.form['target_url']
+    description = request.form.get('description', '')
     
-    # Optional fields for new features
-    expires_at = request.form.get('expires_at', '').strip()
-    require_guid = request.form.get('require_guid')  # checkbox
-    basic_auth_user = request.form.get('basic_auth_user', '').strip()
-    basic_auth_pass = request.form.get('basic_auth_pass', '').strip()
-    
-    # Validate short_link
     if short_link == 'admin':
         return 'Cannot use reserved word "admin"', 400
-    
-    # Optional: Validate the URL if you want to ensure only http/https
-    if not is_valid_url(target_url):
-        return "Invalid URL", 400
-    
-    # If user checked the "require_guid" box, generate a GUID
-    guid_required = None
-    if require_guid == 'on':
-        guid_required = str(uuid.uuid4())
-    
-    # If expires_at is empty, store NULL
-    if not expires_at:
-        expires_at = None
-    
-    # If basic_auth_user or pass is empty, store NULL
-    if not basic_auth_user:
-        basic_auth_user = None
-    if not basic_auth_pass:
-        basic_auth_pass = None
     
     conn = get_db()
     c = conn.cursor()
     c.execute('''
         INSERT OR REPLACE INTO links 
-        (short_link, target_url, is_file, created_by, description, expires_at, guid_required, basic_auth_user, basic_auth_pass) 
-        VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)
-    ''', (
-        short_link,
-        target_url,
-        session['user'].get('preferred_username'),
-        description,
-        expires_at,
-        guid_required,
-        basic_auth_user,
-        basic_auth_pass
-    ))
+        (short_link, target_url, is_file, created_by, description) 
+        VALUES (?, ?, 0, ?, ?)
+    ''', (short_link, target_url, session['user'].get('preferred_username'), description))
     conn.commit()
     return redirect('/admin')
 
@@ -315,14 +426,8 @@ def upload_file():
     if 'file' not in request.files:
         return 'No file part', 400
     file = request.files['file']
-    short_link = request.form['short_link'].strip()
-    description = request.form.get('description', '').strip()
-    
-    # Optional fields for new features
-    expires_at = request.form.get('expires_at', '').strip()
-    require_guid = request.form.get('require_guid')  # checkbox
-    basic_auth_user = request.form.get('basic_auth_user', '').strip()
-    basic_auth_pass = request.form.get('basic_auth_pass', '').strip()
+    short_link = request.form['short_link']
+    description = request.form.get('description', '')
     
     if short_link == 'admin':
         return 'Cannot use reserved word "admin"', 400
@@ -330,45 +435,22 @@ def upload_file():
     if file.filename == '':
         return 'No selected file', 400
         
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], short_link + '_' + filename)
-    file.save(file_path)
-    
-    # If user checked the "require_guid" box, generate a GUID
-    guid_required = None
-    if require_guid == 'on':
-        guid_required = str(uuid.uuid4())
-    
-    # If expires_at is empty, store NULL
-    if not expires_at:
-        expires_at = None
-    
-    # If basic_auth_user or pass is empty, store NULL
-    if not basic_auth_user:
-        basic_auth_user = None
-    if not basic_auth_pass:
-        basic_auth_pass = None
-    
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''
-        INSERT OR REPLACE INTO links 
-        (short_link, target_url, is_file, filename, created_by, description,
-         expires_at, guid_required, basic_auth_user, basic_auth_pass) 
-        VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        short_link,
-        file_path,
-        filename,
-        session['user'].get('preferred_username'),
-        description,
-        expires_at,
-        guid_required,
-        basic_auth_user,
-        basic_auth_pass
-    ))
-    conn.commit()
-    
+    if file:
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], 
+                                short_link + '_' + filename)
+        file.save(file_path)
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR REPLACE INTO links 
+            (short_link, target_url, is_file, filename, created_by, description) 
+            VALUES (?, ?, 1, ?, ?, ?)
+        ''', (short_link, file_path, filename, 
+              session['user'].get('preferred_username'), description))
+        conn.commit()
+        
     return redirect('/admin')
 
 @app.route('/admin/edit/<short_link>', methods=['GET', 'POST'])
@@ -385,7 +467,8 @@ def edit_link(short_link):
             abort(404)
             
         return render_template("edit.html", link=link)
-    else:
+    
+    else:  # POST
         # Get current link info
         c.execute("SELECT * FROM links WHERE short_link = ?", (short_link,))
         current_link = c.fetchone()
@@ -393,35 +476,12 @@ def edit_link(short_link):
         if current_link is None:
             abort(404)
         
-        new_short_link = request.form["short_link"].strip()
-        description = request.form.get("description", "").strip()
-        expires_at = request.form.get('expires_at', '').strip()
-        require_guid = request.form.get('require_guid')  # checkbox
-        basic_auth_user = request.form.get('basic_auth_user', '').strip()
-        basic_auth_pass = request.form.get('basic_auth_pass', '').strip()
+        new_short_link = request.form["short_link"]
+        description = request.form.get("description", "")
         
-        # Validate
         if new_short_link == "admin":
             return "Cannot use reserved word \"admin\"", 400
         
-        guid_required = None
-        if require_guid == 'on':
-            guid_required = str(uuid.uuid4())
-        
-        # If expires_at is empty, store NULL
-        if not expires_at:
-            expires_at = None
-        
-        # If basic_auth_user or pass is empty, store NULL
-        if not basic_auth_user:
-            basic_auth_user = None
-        if not basic_auth_pass:
-            basic_auth_pass = None
-
-        conn = get_db()
-        c = conn.cursor()
-        
-        # If it's a file link
         if current_link["is_file"]:
             file = request.files.get("file")
             if file and file.filename:
@@ -433,129 +493,55 @@ def edit_link(short_link):
                 
                 # Save new file
                 filename = secure_filename(file.filename)
-                file_path = os.path.join(app.config["UPLOAD_FOLDER"], new_short_link + "_" + filename)
+                file_path = os.path.join(app.config["UPLOAD_FOLDER"], 
+                                    new_short_link + "_" + filename)
                 file.save(file_path)
                 
+                # Update database
                 if short_link == new_short_link:
                     c.execute("""
-                        UPDATE links
-                        SET target_url = ?,
-                            filename = ?,
-                            description = ?,
-                            expires_at = ?,
-                            guid_required = ?,
-                            basic_auth_user = ?,
-                            basic_auth_pass = ?
+                        UPDATE links 
+                        SET target_url = ?, filename = ?, description = ?
                         WHERE short_link = ?
-                    """, (
-                        file_path,
-                        filename,
-                        description,
-                        expires_at,
-                        guid_required,
-                        basic_auth_user,
-                        basic_auth_pass,
-                        short_link
-                    ))
+                    """, (file_path, filename, description, short_link))
                 else:
-                    # Insert new row, delete old
                     c.execute("""
                         INSERT OR REPLACE INTO links 
-                        (short_link, target_url, is_file, filename, created_by, description,
-                         expires_at, guid_required, basic_auth_user, basic_auth_pass)
-                        VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        new_short_link,
-                        file_path,
-                        filename,
-                        session["user"].get("preferred_username"),
-                        description,
-                        expires_at,
-                        guid_required,
-                        basic_auth_user,
-                        basic_auth_pass
-                    ))
+                        (short_link, target_url, is_file, filename, created_by, description)
+                        VALUES (?, ?, 1, ?, ?, ?)
+                    """, (new_short_link, file_path, filename,
+                          session["user"].get("preferred_username"), description))
                     c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
             else:
-                # No new file, just update metadata
+                # Just update description and short_link
                 if short_link == new_short_link:
                     c.execute("""
-                        UPDATE links
-                        SET description = ?,
-                            expires_at = ?,
-                            guid_required = ?,
-                            basic_auth_user = ?,
-                            basic_auth_pass = ?
-                        WHERE short_link = ?
-                    """, (
-                        description,
-                        expires_at,
-                        guid_required,
-                        basic_auth_user,
-                        basic_auth_pass,
-                        short_link
-                    ))
+                        UPDATE links SET description = ? WHERE short_link = ?
+                    """, (description, short_link))
                 else:
                     c.execute("""
-                        INSERT OR REPLACE INTO links
-                        (short_link, target_url, is_file, filename, created_by, description,
-                         expires_at, guid_required, basic_auth_user, basic_auth_pass)
-                        VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        new_short_link,
-                        current_link["target_url"],
-                        current_link["filename"],
-                        session["user"].get("preferred_username"),
-                        description,
-                        expires_at,
-                        guid_required,
-                        basic_auth_user,
-                        basic_auth_pass
-                    ))
+                        INSERT OR REPLACE INTO links 
+                        (short_link, target_url, is_file, filename, created_by, description)
+                        VALUES (?, ?, 1, ?, ?, ?)
+                    """, (new_short_link, current_link["target_url"],
+                          current_link["filename"],
+                          session["user"].get("preferred_username"), description))
                     c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
-        
         else:
-            # Not a file -> URL
-            target_url = request.form["target_url"].strip()
-            # Optional: Validate
-            if not is_valid_url(target_url):
-                return "Invalid URL", 400
-            
+            target_url = request.form["target_url"]
             if short_link == new_short_link:
                 c.execute("""
-                    UPDATE links
-                    SET target_url = ?,
-                        description = ?,
-                        expires_at = ?,
-                        guid_required = ?,
-                        basic_auth_user = ?,
-                        basic_auth_pass = ?
+                    UPDATE links 
+                    SET target_url = ?, description = ?
                     WHERE short_link = ?
-                """, (
-                    target_url,
-                    description,
-                    expires_at,
-                    guid_required,
-                    basic_auth_user,
-                    basic_auth_pass,
-                    short_link
-                ))
+                """, (target_url, description, short_link))
             else:
                 c.execute("""
-                    INSERT OR REPLACE INTO links
-                    (short_link, target_url, is_file, created_by, description,
-                     expires_at, guid_required, basic_auth_user, basic_auth_pass)
-                    VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)
-                """, (
-                    new_short_link,
-                    target_url,
-                    session["user"].get("preferred_username"),
-                    description,
-                    expires_at,
-                    guid_required,
-                    basic_auth_user,
-                    basic_auth_pass
-                ))
+                    INSERT OR REPLACE INTO links 
+                    (short_link, target_url, is_file, created_by, description)
+                    VALUES (?, ?, 0, ?, ?)
+                """, (new_short_link, target_url,
+                      session["user"].get("preferred_username"), description))
                 c.execute("DELETE FROM links WHERE short_link = ?", (short_link,))
         
         conn.commit()
@@ -575,9 +561,8 @@ def redirect_link(short_link):
     conn = get_db()
     c = conn.cursor()
     c.execute('''
-        SELECT target_url, is_file, filename,
-               expires_at, guid_required, basic_auth_user, basic_auth_pass
-        FROM links
+        SELECT target_url, is_file, filename 
+        FROM links 
         WHERE short_link = ?
     ''', (short_link,))
     result = c.fetchone()
@@ -585,54 +570,17 @@ def redirect_link(short_link):
     if result is None:
         abort(404)
     
-    # 1) Check if expired
-    expires_at = result['expires_at']
-    if expires_at:
-        try:
-            expires_dt = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
-            if datetime.utcnow() > expires_dt:
-                abort(404)  # Link expired
-        except ValueError:
-            # If parsing fails, ignore or log an error
-            pass
-    
-    # 2) Check Basic Auth
-    if result['basic_auth_user'] is not None:
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Basic '):
-            return _http_auth_required()
-        
-        # Decode base64
-        encoded_credentials = auth_header.split(' ', 1)[1].strip()
-        try:
-            decoded_bytes = base64.b64decode(encoded_credentials)
-            decoded_str = decoded_bytes.decode('utf-8')
-            incoming_user, incoming_pass = decoded_str.split(':', 1)
-        except Exception:
-            return _http_auth_required()
-        
-        # Compare with stored credentials
-        if (incoming_user != result['basic_auth_user'] or
-                incoming_pass != result['basic_auth_pass']):
-            return _http_auth_required()
-    
-    # 3) Check GUID
-    if result['guid_required']:
-        passed_guid = request.args.get('s')
-        if passed_guid != result['guid_required']:
-            abort(403)  # Wrong or missing GUID
-    
-    # If we pass all checks, record the click
+    # Record the click
     record_click(
         short_link=short_link,
         ip_address=request.remote_addr,
         user_agent=request.user_agent.string,
         referer=request.referrer
     )
-    
-    # Finally, serve the file or redirect
+        
     if result['is_file']:  # If it's a file
-        return send_file(result['target_url'], download_name=result['filename'])
+        return send_file(result['target_url'], 
+                        download_name=result['filename'])
     else:  # If it's a URL
         return redirect(result['target_url'])
 
@@ -645,7 +593,8 @@ def delete_link():
     c = conn.cursor()
     
     # Get file info before deletion
-    c.execute('SELECT is_file, target_url FROM links WHERE short_link = ?', (short_link,))
+    c.execute('SELECT is_file, target_url FROM links WHERE short_link = ?', 
+              (short_link,))
     result = c.fetchone()
     
     if result and result['is_file']:
@@ -667,5 +616,137 @@ def cleanup(exc):
         g.db.close()
 
 if __name__ == '__main__':
-    # Adjust as needed, but normally we'd use WSGI (Gunicorn, etc.)
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=8081)from functools import wraps
+from flask import session, redirect, url_for, current_app, request, g
+from onelogin.saml2.auth import OneLogin_Saml2_Auth
+from onelogin.saml2.utils import OneLogin_Saml2_Utils
+import json
+import os
+from urllib.parse import urlparse
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+def init_saml_auth(req):
+    saml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saml')
+    with open(os.path.join(saml_path, 'settings.json'), 'r') as f:
+        settings = json.load(f)
+        logger.debug(f"SAML Settings loaded: {json.dumps(settings, indent=2)}")
+    auth = OneLogin_Saml2_Auth(req, settings)
+    return auth
+
+def prepare_flask_request(request):
+    url_data = urlparse(request.url)
+    logger.debug(f"Preparing Flask request: URL={request.url}, Host={request.host}")
+    
+    # Get the actual URL scheme (http or https)
+    scheme = request.headers.get('X-Forwarded-Proto', request.scheme)
+    
+    return {
+        'https': 'on' if scheme == 'https' else 'off',
+        'http_host': request.host,
+        'server_port': url_data.port or (443 if scheme == 'https' else 80),
+        'script_name': request.path,
+        'get_data': request.args.copy(),
+        'post_data': request.form.copy(),
+        'query_string': request.query_string
+    }
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_app.config['ENABLE_SSO']:
+            if 'user' not in session:
+                session['user'] = {
+                    'preferred_username': 'local_user',
+                    'name': 'Local User'
+                }
+            return f(*args, **kwargs)
+            
+        if not session.get('user'):
+            session['next_url'] = request.url
+            logger.debug(f"No user in session, redirecting to SSO login. Next URL: {request.url}")
+            return redirect(url_for('sso_login'))
+            
+        return f(*args, **kwargs)
+    return decoratedimport os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Config:
+    # Flask config
+    SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key')
+    DEBUG = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    
+    # Database paths
+    DATABASE_PATH = 'shortener.db'
+    
+    # Upload config
+    UPLOAD_FOLDER = 'uploads'
+    MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB
+    
+    # Feature flags
+    ENABLE_SSO = os.getenv('ENABLE_SSO', 'false').lower() == 'true'
+    
+    # Session config
+    SESSION_TYPE = "filesystem"import sqlite3
+from flask import current_app, g
+import os
+
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect(current_app.config['DATABASE_PATH'])
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    db = get_db()
+    
+    # Read schema
+    with current_app.open_resource('schema.sql') as f:
+        db.executescript(f.read().decode('utf8'))
+    
+    # Create uploads directory if it doesn't exist
+    os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+def record_click(short_link, ip_address, user_agent=None, referer=None):
+    db = get_db()
+    db.execute('''
+        INSERT INTO clicks (short_link, ip_address, user_agent, referer)
+        VALUES (?, ?, ?, ?)
+    ''', (short_link, ip_address, user_agent, referer))
+    db.commit()
+
+def get_link_stats(short_link):
+    db = get_db()
+    # Get total clicks
+    total_clicks = db.execute('''
+        SELECT COUNT(*) as count FROM clicks WHERE short_link = ?
+    ''', (short_link,)).fetchone()['count']
+    
+    # Get unique IPs
+    unique_ips = db.execute('''
+        SELECT COUNT(DISTINCT ip_address) as count FROM clicks WHERE short_link = ?
+    ''', (short_link,)).fetchone()['count']
+    
+    # Get recent clicks
+    recent_clicks = db.execute('''
+        SELECT ip_address, user_agent, referer, clicked_at
+        FROM clicks
+        WHERE short_link = ?
+        ORDER BY clicked_at DESC
+        LIMIT 10
+    ''', (short_link,)).fetchall()
+    
+    return {
+        'total_clicks': total_clicks,
+        'unique_visitors': unique_ips,
+        'recent_clicks': recent_clicks
+    }

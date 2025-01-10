@@ -9,25 +9,68 @@
         <th>Target</th>
         <th>Description</th>
         <th>Type</th>
+        <th>Expiration</th>
+        <th>GUID?</th>
+        <th>Basic Auth?</th>
         <th>Stats</th>
         <th>Actions</th>
     </tr>
     {% for link in links %}
     <tr>
+        {# Build final link URL for the <a> href. #}
+        {% if link.guid_required %}
+            {% set href_value = '/' ~ link.short_link ~ '?s=' ~ link.guid_required %}
+        {% else %}
+            {% set href_value = '/' ~ link.short_link %}
+        {% endif %}
+
+        {# Also build the full copy URL including host. #}
+        {% set copy_url = request.host_url ~ link.short_link %}
+        {% if link.guid_required %}
+            {% set copy_url = copy_url ~ '?s=' ~ link.guid_required %}
+        {% endif %}
+
         <td>
             <div style="display: flex; align-items: center;">
-                <a href="/{{ link.short_link }}" target="_blank">{{ link.short_link }}</a>
-                <button class="copy" onclick="copyToClipboard(this, '{{ request.host_url }}{{ link.short_link }}')" title="Copy link">
+                <!--
+                  The displayed text is just link.short_link,
+                  but the href includes ?s=GUID if needed
+                -->
+                <a href="{{ href_value }}" target="_blank">{{ link.short_link }}</a>
+                <button class="copy"
+                        onclick="copyToClipboard(this, '{{ copy_url }}')"
+                        title="Copy link">
                     <i class="fas fa-copy"></i>
                 </button>
             </div>
         </td>
-        <td>{{ link.target_url if not link.is_file else link.filename }}</td>
+        <td>
+            {% if link.is_file %}
+                {{ link.filename }}
+            {% else %}
+                {{ link.target_url }}
+            {% endif %}
+        </td>
         <td>{{ link.description or "" }}</td>
         <td>
             <span class="badge {{ 'file' if link.is_file else 'url' }}">
                 {{ 'File' if link.is_file else 'URL' }}
             </span>
+        </td>
+        <td>
+            {% if link.expires_at %}
+                <span style="color: #e53e3e;">{{ link.expires_at }}</span>
+            {% else %}
+                <span style="color: #48bb78;">Never</span>
+            {% endif %}
+        </td>
+        <td>
+            <!-- Checkbox to indicate if GUID is required -->
+            <input type="checkbox" disabled {% if link.guid_required %}checked{% endif %}>
+        </td>
+        <td>
+            <!-- Checkbox to indicate if Basic Auth is set -->
+            <input type="checkbox" disabled {% if link.basic_auth_user %}checked{% endif %}>
         </td>
         <td>
             <a href="/admin/stats/{{ link.short_link }}" class="stats-link">
@@ -36,13 +79,15 @@
             </a>
         </td>
         <td class="action-buttons">
-            <a href="/admin/edit/{{ link.short_link }}" class="button edit">
-                <i class="fas fa-edit"></i> Edit
+            <!-- Pencil icon only, no text -->
+            <a href="/admin/edit/{{ link.short_link }}" class="button edit" title="Edit">
+                <i class="fas fa-edit"></i>
             </a>
+            <!-- Trash icon only, no text -->
             <form method="POST" action="/admin/delete" style="display: inline;">
                 <input type="hidden" name="short_link" value="{{ link.short_link }}">
-                <button type="submit" class="delete">
-                    <i class="fas fa-trash"></i> Delete
+                <button type="submit" class="delete" title="Delete">
+                    <i class="fas fa-trash"></i>
                 </button>
             </form>
         </td>
