@@ -1,3 +1,4 @@
+import zipfile
 from flask import Flask, g, request, redirect, render_template, send_file, abort, session, url_for, make_response
 from werkzeug.utils import secure_filename
 from flask_session import Session
@@ -139,16 +140,30 @@ def logout():
 @app.route('/admin')
 @requires_auth
 def admin():
+    page = request.args.get("page", 1, type=int)
+    per_page = 50
+    offset = (page - 1) * per_page
+    
     conn = get_db()
     c = conn.cursor()
-    c.execute('''
+    
+    # Get total count
+    c.execute("SELECT COUNT(*) as count FROM links")
+    total_links = c.fetchone()["count"]
+    total_pages = (total_links + per_page - 1) // per_page
+    
+    # Get paginated links
+    c.execute("""
         SELECT l.*, 
                COUNT(DISTINCT c.ip_address) as unique_visitors,
                COUNT(c.id) as total_clicks
         FROM links l
         LEFT JOIN clicks c ON l.short_link = c.short_link
         GROUP BY l.short_link
-    ''')
+        ORDER BY l.created_at DESC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset))
+    
     links = c.fetchall()
     return render_template("admin.html", 
                          links=links,
@@ -156,20 +171,34 @@ def admin():
                          page=page,
                          total_pages=total_pages,
                          total_links=total_links)
-                         links=links,
-                         user=session.get('user'))
 
 @app.route('/admin/search')
 @requires_auth
 def search_links():
     search_term = request.args.get("q", "").strip()
-    logger.info(f"Searching for: {search_term}")
+    page = request.args.get("page", 1, type=int)
+    per_page = 50
+    offset = (page - 1) * per_page
+    
+    logger.info(f"Searching for: {search_term} (page {page})")
     
     conn = get_db()
     c = conn.cursor()
     
     if search_term:
         search_pattern = f"%{search_term}%"
+        # Get total count for search
+        c.execute("""
+            SELECT COUNT(*) as count 
+            FROM links 
+            WHERE short_link LIKE ? 
+               OR target_url LIKE ? 
+               OR filename LIKE ?
+               OR description LIKE ?
+        """, (search_pattern, search_pattern, search_pattern, search_pattern))
+        total_links = c.fetchone()["count"]
+        
+        # Get paginated search results
         c.execute("""
             SELECT l.*, 
                    COUNT(DISTINCT c.ip_address) as unique_visitors,
@@ -181,8 +210,15 @@ def search_links():
                OR l.filename LIKE ?
                OR l.description LIKE ?
             GROUP BY l.short_link
-        """, (search_pattern, search_pattern, search_pattern, search_pattern))
+            ORDER BY l.created_at DESC
+            LIMIT ? OFFSET ?
+        """, (search_pattern, search_pattern, search_pattern, search_pattern, per_page, offset))
     else:
+        # Get total count
+        c.execute("SELECT COUNT(*) as count FROM links")
+        total_links = c.fetchone()["count"]
+        
+        # Get paginated results
         c.execute("""
             SELECT l.*, 
                    COUNT(DISTINCT c.ip_address) as unique_visitors,
@@ -190,10 +226,13 @@ def search_links():
             FROM links l
             LEFT JOIN clicks c ON l.short_link = c.short_link
             GROUP BY l.short_link
-        """)
+            ORDER BY l.created_at DESC
+            LIMIT ? OFFSET ?
+        """, (per_page, offset))
     
+    total_pages = (total_links + per_page - 1) // per_page
     links = c.fetchall()
-    logger.info(f"Found {len(links)} results")
+    logger.info(f"Found {total_links} results, showing page {page} of {total_pages}")
     return render_template("_links_table.html",
                          links=links,
                          page=page,
