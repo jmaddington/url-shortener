@@ -1,392 +1,286 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>URL Shortener Admin</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
+{% extends "base.html" %}
 
-        body {
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-            padding: 2rem;
-        }
+{% block title %}URL Shortener Admin{% endblock %}
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+{% block additional_styles %}
+.form-group {
+    margin-bottom: 1.5rem;
+}
 
-        h1 {
-            color: #2d3748;
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #4a5568;
+}
 
-        h2 {
-            color: #4a5568;
-            font-size: 1.5rem;
-            margin: 2rem 0 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e2e8f0;
-        }
+input[type="text"],
+input[type="url"],
+input[type="file"],
+textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
 
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+input[type="text"]:focus,
+input[type="url"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
 
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: #4a5568;
-        }
+button {
+    background-color: #4299e1;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
 
-        input[type="text"],
-        input[type="url"],
-        input[type="file"],
-        textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1rem;
-            transition: border-color 0.2s;
-        }
+button:hover {
+    background-color: #3182ce;
+}
 
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
+button.delete {
+    background-color: #e53e3e;
+}
 
-        input[type="text"]:focus,
-        input[type="url"]:focus,
-        textarea:focus {
-        }
+button.delete:hover {
+    background-color: #c53030;
+}
 
-        .file-info {
-            font-size: 0.875rem;
-            color: #718096;
-            margin-top: 0.25rem;
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-        }
+button.copy {
+    background-color: #48bb78;
+    padding: 0.5rem 1rem;
+    margin-left: 0.5rem;
+}
 
-        button {
-            background-color: #4299e1;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
+button.copy:hover {
+    background-color: #38a169;
+}
 
-        button:hover {
-            background-color: #3182ce;
-        }
+button.copy.copied {
+    background-color: #68d391;
+}
 
-        button.delete {
-            background-color: #e53e3e;
-        }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
 
-        button.delete:hover {
-            background-color: #c53030;
-        }
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
 
-        button.copy {
-            background-color: #48bb78;
-            padding: 0.5rem 1rem;
-            margin-left: 0.5rem;
-        }
+th {
+    background-color: #f7fafc;
+    font-weight: 600;
+    color: #4a5568;
+}
 
-        button.copy:hover {
-            background-color: #38a169;
-        }
+tr:hover {
+    background-color: #f7fafc;
+}
 
-        button.copy.copied {
-            background-color: #68d391;
-        }
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+.badge.url {
+    background-color: #ebf4ff;
+    color: #4299e1;
+}
 
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
+.badge.file {
+    background-color: #f0fff4;
+    color: #48bb78;
+}
 
-        th {
-            background-color: #f7fafc;
-            font-weight: 600;
-            color: #4a5568;
-        }
+.forms-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
 
-        tr:hover {
-            background-color: #f7fafc;
-        }
+.stats-link {
+    color: #4299e1;
+    text-decoration: none;
+    margin-left: 1rem;
+}
 
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
+.stats-link:hover {
+    text-decoration: underline;
+}
 
-        .badge.url {
-            background-color: #ebf4ff;
-            color: #4299e1;
-        }
+.button.edit {
+    background-color: #6B7280;
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+    display: inline-block;
+}
 
-        .badge.file {
-            background-color: #f0fff4;
-            color: #48bb78;
-        }
+.button.edit:hover {
+    background-color: #4B5563;
+}
 
-        .user-info {
-            text-align: right;
-            margin-bottom: 1rem;
-            color: #4a5568;
-        }
+.action-buttons {
+    white-space: nowrap;
+}
 
-        .user-info .user-name {
-            font-weight: 500;
-            color: #2d3748;
-        }
+.file-info {
+    font-size: 0.875rem;
+    color: #718096;
+    margin-top: 0.25rem;
+}
 
-        .logout-btn {
-            background-color: #718096;
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-            margin-left: 0.5rem;
-        }
+@media (max-width: 768px) {
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
 
-        .logout-btn:hover {
-            background-color: #4a5568;
-        }
+    th, td {
+        padding: 0.75rem;
+    }
+}
+{% endblock %}
 
-        .download-btn {
-            background-color: #6B7280;
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-            margin-left: 0.5rem;
-            text-decoration: none;
-            color: white;
-            border-radius: 6px;
-            display: inline-block;
-        }
+{% block content %}
+<h1>URL Shortener Admin</h1>
 
-        .download-btn:hover {
-            background-color: #4B5563;
-        }
-
-        .download-btn i {
-            margin-right: 0.5rem;
-        }
-
-        .forms-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .stats-link {
-            color: #4299e1;
-            text-decoration: none;
-            margin-left: 1rem;
-        }
-
-        .stats-link:hover {
-            text-decoration: underline;
-        }
-
-        .button.edit {
-            background-color: #6B7280;
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-            margin-right: 0.5rem;
-            display: inline-block;
-        }
-
-        .button.edit:hover {
-            background-color: #4B5563;
-        }
-
-        .action-buttons {
-            white-space: nowrap;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-
-            .card {
-                padding: 1rem;
-            }
-
-            table {
-                display: block;
-                overflow-x: auto;
-                white-space: nowrap;
-            }
-
-            th, td {
-                padding: 0.75rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="user-info">
-            {% if user %}
-                Logged in as <span class="user-name">{{ user.name }}</span>
-                <a href="/download-repo" class="download-btn">
-                    <i class="fas fa-download"></i> Download Repository
-                </a>
-                <a href="/sso/logout" class="button logout-btn">Logout</a>
-            {% endif %}
-        </div>
-
-        <h1>URL Shortener Admin</h1>
-        
-        <div class="forms-container">
-            <div class="card">
-                <h2>Create URL Redirect</h2>
-                <form method="POST" action="/admin/create">
-                    <div class="form-group">
-                        <label>Short Link:</label>
-                        <input type="text" name="short_link" required placeholder="e.g., my-link">
-                    </div>
-                    <div class="form-group">
-                        <label>Target URL:</label>
-                        <input type="url" name="target_url" required placeholder="https://example.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Description:</label>
-                        <textarea name="description" placeholder="Optional description"></textarea>
-                    </div>
-                    <button type="submit">Create URL Link</button>
-                </form>
+<div class="forms-container">
+    <div class="card">
+        <h2>Create URL Redirect</h2>
+        <form method="POST" action="/admin/create">
+            <div class="form-group">
+                <label>Short Link:</label>
+                <input type="text" name="short_link" required placeholder="e.g., my-link">
             </div>
-
-            <div class="card">
-                <h2>Upload File</h2>
-                <form method="POST" action="/admin/upload" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label>Short Link:</label>
-                        <input type="text" name="short_link" required placeholder="e.g., my-file">
-                    </div>
-                    <div class="form-group">
-                        <label>File:</label>
-                        <div class="file-info">Maximum file size: 500MB</div>
-                        <input type="file" name="file" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Description:</label>
-                        <textarea name="description" placeholder="Optional description"></textarea>
-                    </div>
-                    <button type="submit">Upload File</button>
-                </form>
+            <div class="form-group">
+                <label>Target URL:</label>
+                <input type="url" name="target_url" required placeholder="https://example.com">
             </div>
-        </div>
-
-        <div class="card">
-            <h2>Existing Links</h2>
-            <table>
-                <tr>
-                    <th>Short Link</th>
-                    <th>Target</th>
-                    <th>Description</th>
-                    <th>Type</th>
-                    <th>Stats</th>
-                    <th>Actions</th>
-                </tr>
-                {% for link in links %}
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center;">
-                            <a href="/{{ link.short_link }}" target="_blank">{{ link.short_link }}</a>
-                            <button class="copy" onclick="copyToClipboard(this, '{{ request.host_url }}{{ link.short_link }}')" title="Copy link">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </div>
-                    </td>
-                    <td>{{ link.target_url if not link.is_file else link.filename }}</td>
-                    <td>{{ link.description or "" }}</td>
-                    <td>
-                        <span class="badge {{ 'file' if link.is_file else 'url' }}">
-                            {{ 'File' if link.is_file else 'URL' }}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="/admin/stats/{{ link.short_link }}" class="stats-link">
-                            {{ link.total_clicks }} clicks
-                            ({{ link.unique_visitors }} unique)
-                        </a>
-                    </td>
-                    <td class="action-buttons">
-                        <a href="/admin/edit/{{ link.short_link }}" class="button edit">
-                            <i class="fas fa-edit"></i> Edit
-                        </a>
-                        <form method="POST" action="/admin/delete" style="display: inline;">
-                            <input type="hidden" name="short_link" value="{{ link.short_link }}">
-                            <button type="submit" class="delete">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
+            <div class="form-group">
+                <label>Description:</label>
+                <textarea name="description" placeholder="Optional description"></textarea>
+            </div>
+            <button type="submit">Create URL Link</button>
+        </form>
     </div>
 
-    <script>
-    function copyToClipboard(button, text) {
-        navigator.clipboard.writeText(text).then(() => {
-            button.classList.add('copied');
-            setTimeout(() => {
-                button.classList.remove('copied');
-            }, 2000);
-        }).catch(err => {
-            console.error('Failed to copy text: ', err);
-        });
-    }
-    </script>
-</body>
-</html>
+    <div class="card">
+        <h2>Upload File</h2>
+        <form method="POST" action="/admin/upload" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Short Link:</label>
+                <input type="text" name="short_link" required placeholder="e.g., my-file">
+            </div>
+            <div class="form-group">
+                <label>File:</label>
+                <input type="file" name="file" required>
+                <div class="file-info">Maximum file size: 500MB</div>
+            </div>
+            <div class="form-group">
+                <label>Description:</label>
+                <textarea name="description" placeholder="Optional description"></textarea>
+            </div>
+            <button type="submit">Upload File</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Existing Links</h2>
+    <table>
+        <tr>
+            <th>Short Link</th>
+            <th>Target</th>
+            <th>Description</th>
+            <th>Type</th>
+            <th>Stats</th>
+            <th>Actions</th>
+        </tr>
+        {% for link in links %}
+        <tr>
+            <td>
+                <div style="display: flex; align-items: center;">
+                    <a href="/{{ link.short_link }}" target="_blank">{{ link.short_link }}</a>
+                    <button class="copy" onclick="copyToClipboard(this, '{{ request.host_url }}{{ link.short_link }}')" title="Copy link">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </td>
+            <td>{{ link.target_url if not link.is_file else link.filename }}</td>
+            <td>{{ link.description or "" }}</td>
+            <td>
+                <span class="badge {{ 'file' if link.is_file else 'url' }}">
+                    {{ 'File' if link.is_file else 'URL' }}
+                </span>
+            </td>
+            <td>
+                <a href="/admin/stats/{{ link.short_link }}" class="stats-link">
+                    {{ link.total_clicks }} clicks
+                    ({{ link.unique_visitors }} unique)
+                </a>
+            </td>
+            <td class="action-buttons">
+                <a href="/admin/edit/{{ link.short_link }}" class="button edit">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <form method="POST" action="/admin/delete" style="display: inline;">
+                    <input type="hidden" name="short_link" value="{{ link.short_link }}">
+                    <button type="submit" class="delete">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyToClipboard(button, text) {
+    navigator.clipboard.writeText(text).then(() => {
+        button.classList.add('copied');
+        setTimeout(() => {
+            button.classList.remove('copied');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+}
+</script>
+{% endblock %}
