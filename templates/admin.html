@@ -224,6 +224,25 @@
             text-decoration: underline;
         }
 
+        .button.edit {
+            background-color: #6B7280;
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-right: 0.5rem;
+            display: inline-block;
+        }
+
+        .button.edit:hover {
+            background-color: #4B5563;
+        }
+
+        .action-buttons {
+            white-space: nowrap;
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: 1rem;
@@ -320,7 +339,7 @@
                             </button>
                         </div>
                     </td>
-                    <td class="truncate">{{ link.target_url if not link.is_file else link.filename }}</td>
+                    <td>{{ link.target_url if not link.is_file else link.filename }}</td>
                     <td>{{ link.description or "" }}</td>
                     <td>
                         <span class="badge {{ 'file' if link.is_file else 'url' }}">
@@ -333,7 +352,10 @@
                             ({{ link.unique_visitors }} unique)
                         </a>
                     </td>
-                    <td>
+                    <td class="action-buttons">
+                        <a href="/admin/edit/{{ link.short_link }}" class="button edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
                         <form method="POST" action="/admin/delete" style="display: inline;">
                             <input type="hidden" name="short_link" value="{{ link.short_link }}">
                             <button type="submit" class="delete">
