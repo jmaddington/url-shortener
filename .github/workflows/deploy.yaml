@@ -31,7 +31,7 @@ jobs:
           context: .
           file: Dockerfile.multi
           push: true
-          tags: ghcr.io/jmaddington/url-shortner:latest
+          tags: ghcr.io/${{ github.repository_owner }}/url-shortener:latest
 
       - name: Log out from Docker Hub
         run: docker logout ghcr.io
