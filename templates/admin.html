@@ -313,67 +313,38 @@ const searchInput = document.getElementById("searchInput");
 const linksTable = document.querySelector(".links-table");
 const loadingOverlay = document.querySelector(".loading-overlay");
 
-async function performSearch() {
+function performSearch() {
     const searchTerm = searchInput.value;
     console.log("Searching for:", searchTerm);
     
     // Show loading overlay
     loadingOverlay.style.display = "flex";
     
-    try {
-        const response = await fetch(`/admin/search?q=${encodeURIComponent(searchTerm)}`);
-        if (!response.ok) throw new Error("Search failed");
-        
-        const html = await response.text();
-        console.log("Received HTML length:", html.length);
-        
-        const tableContainer = document.querySelector(".links-table");
-        // Keep the loading overlay element
-        const overlay = tableContainer.querySelector(".loading-overlay");
-        // Replace content while preserving the overlay
-        tableContainer.innerHTML = html;
-        tableContainer.appendChild(overlay);
-        
-        // Reinitialize copy buttons
-        initializeCopyButtons();
-        console.log("Search results updated");
-    } catch (error) {
-        console.error("Search error:", error);
-    } finally {
-        loadingOverlay.style.display = "none";
-    }
-}
-        if (!response.ok) throw new Error("Search failed");
-        
-        const html = await response.text();
-        const tableContainer = document.querySelector(".links-table");
-        // Keep the loading overlay element
-        const overlay = tableContainer.querySelector(".loading-overlay");
-        // Replace content while preserving the overlay
-        tableContainer.innerHTML = html;
-        tableContainer.appendChild(overlay);
-        
-        // Reinitialize copy buttons
-        initializeCopyButtons();
-    } catch (error) {
-        console.error("Search error:", error);
-    } finally {
-        loadingOverlay.style.display = "none";
-    }
-}
-        if (!response.ok) throw new Error("Search failed");
-        
-        const html = await response.text();
-        const tableContainer = document.querySelector(".links-table");
-        tableContainer.innerHTML = html + tableContainer.querySelector(".loading-overlay").outerHTML;
-        
-        // Reinitialize copy buttons
-        initializeCopyButtons();
-    } catch (error) {
-        console.error("Search error:", error);
-    } finally {
-        loadingOverlay.style.display = "none";
-    }
+    fetch(`/admin/search?q=${encodeURIComponent(searchTerm)}`)
+        .then(response => {
+            if (!response.ok) throw new Error("Search failed");
+            return response.text();
+        })
+        .then(html => {
+            console.log("Received HTML length:", html.length);
+            
+            const tableContainer = document.querySelector(".links-table");
+            // Keep the loading overlay element
+            const overlay = tableContainer.querySelector(".loading-overlay");
+            // Replace content while preserving the overlay
+            tableContainer.innerHTML = html;
+            tableContainer.appendChild(overlay);
+            
+            // Reinitialize copy buttons
+            initializeCopyButtons();
+            console.log("Search results updated");
+        })
+        .catch(error => {
+            console.error("Search error:", error);
+        })
+        .finally(() => {
+            loadingOverlay.style.display = "none";
+        });
 }
 
 searchInput.addEventListener("input", () => {
@@ -391,18 +362,20 @@ function initializeCopyButtons() {
     });
 }
 
+function copyToClipboard(button, text) {
+    navigator.clipboard.writeText(text)
+        .then(() => {
+            button.classList.add("copied");
+            setTimeout(() => {
+                button.classList.remove("copied");
+            }, 2000);
+        })
+        .catch(err => {
+            console.error("Failed to copy text:", err);
+        });
+}
+
 // Initialize copy buttons on page load
 document.addEventListener("DOMContentLoaded", initializeCopyButtons);
-
-function copyToClipboard(button, text) {
-    navigator.clipboard.writeText(text).then(() => {
-        button.classList.add('copied');
-        setTimeout(() => {
-            button.classList.remove('copied');
-        }, 2000);
-    }).catch(err => {
-        console.error('Failed to copy text: ', err);
-    });
-}
 </script>
 {% endblock %}
