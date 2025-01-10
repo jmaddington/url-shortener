@@ -1,17 +1,19 @@
 {
-    "strict": false,
+    "strict": true,
     "debug": true,
     "sp": {
         "entityId": "4f4ce814f4294bac-9e71131e58df6c32",
         "assertionConsumerService": {
-            "url": "https://8080-itiu28vd219pr0s6cpomi-ff67b2e6.e2b.dev/sso/acs",
+            "url": "https://8081-ixs8zmgd73xoz03d8ceqz-ff67b2e6.e2b.dev/sso/acs",
             "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
         },
         "singleLogoutService": {
-            "url": "https://8080-itiu28vd219pr0s6cpomi-ff67b2e6.e2b.dev/sso/sls",
+            "url": "https://8081-ixs8zmgd73xoz03d8ceqz-ff67b2e6.e2b.dev/sso/sls",
             "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
         },
-        "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+        "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+        "x509cert": "",
+        "privateKey": ""
     },
     "idp": {
         "entityId": "https://sts.windows.net/e150f480-24a3-43a2-bda8-7153c504f306/",
@@ -39,6 +41,7 @@
         "allowSingleLabelDomains": false,
         "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
         "digestAlgorithm": "http://www.w3.org/2001/04/xmlenc#sha256",
-        "requestedAuthnContext": false
+        "requestedAuthnContext": false,
+        "relaxDestinationValidation": true
     }
 }
